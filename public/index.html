@@ -602,16 +602,17 @@
                         const deckX = Math.abs(card.x - deckZoneX) < 60;
                         const deckY = Math.abs(card.y - deckZoneY) < 60;
                         if (deckX && deckY) {
-                            updates[`${child.key}/x`] = deckZoneX + (Math.random() * 8 - 4);
-                            updates[`${child.key}/y`] = deckZoneY + (Math.random() * 8 - 4);
+                            updates[`lobbies/${currentLobbyId}/cards/${child.key}/x`] = deckZoneX + (Math.random() * 12 - 6);
+                            updates[`lobbies/${currentLobbyId}/cards/${child.key}/y`] = deckZoneY + (Math.random() * 12 - 6);
                             cardCount++;
                         }
                     }
                 });
                 
                 if (cardCount > 0) {
-                    db.ref(`lobbies/${currentLobbyId}/cards`).update(updates);
-                    notify(`Shuffled ${cardCount} cards.`, "success");
+                    db.ref().update(updates).then(() => {
+                        notify(`Shuffled ${cardCount} cards!`, "success");
+                    });
                 }
             });
         }
@@ -650,20 +651,19 @@
             if (!deckId) return notify("Select a deck first.", "error");
             
             document.getElementById('spawn-modal').style.display = 'none';
-            notify("Spawning library... shuffling...", "info");
+            notify("Loading deck and retrieving card images...", "info");
 
             db.ref(`users/${currentUser.uid}/decks/${deckId}/lastPlayed`).set(Date.now());
             db.ref(`users/${currentUser.uid}/decks/${deckId}/playtests`).transaction(c => (c || 0) + 1);
 
             const mainboardLines = userDecks[deckId].mainboard.split('\n');
-            const sideboardLines = (userDecks[deckId].sideboard || '').split('\n');
             
             const dX = window.innerWidth - 160, dY = window.innerHeight - 430;
-            const sbX = 20, sbY = window.innerHeight / 2 - 98;
             
+            let cardsToAdd = [];
             let successCount = 0;
             
-            // Process mainboard
+            // Process mainboard and collect all cards
             for (let line of mainboardLines) {
                 line = line.trim();
                 if (!line) continue;
@@ -678,13 +678,19 @@
                         if (res.ok) {
                             const data = await res.json();
                             cardName = data.name;
-                            imgUrl = `/api/card-image?url=${encodeURIComponent(data.image_uris ? data.image_uris.normal : data.card_faces[0].image_uris.normal)}`;
+                            if (data.image_uris && data.image_uris.normal) {
+                                imgUrl = data.image_uris.normal;
+                            } else if (data.card_faces && data.card_faces[0] && data.card_faces[0].image_uris) {
+                                imgUrl = data.card_faces[0].image_uris.normal;
+                            }
                         }
-                    } catch (e) { console.error(e); }
+                    } catch (e) { 
+                        console.error('Failed to fetch card:', cardName, e); 
+                    }
                     
                     const count = parseInt(match[1]);
                     for (let i = 0; i < count; i++) { 
-                        db.ref(`lobbies/${currentLobbyId}/cards`).push({ 
+                        cardsToAdd.push({
                             name: cardName, 
                             image: imgUrl, 
                             x: dX + (Math.random() * 8 - 4), 
@@ -699,9 +705,26 @@
                 }
             }
             
-            // Shuffle deck after spawning
-            setTimeout(() => shuffleDeck(), 500);
-            notify(`Deck loaded with ${successCount} cards!`, "success");
+            // Batch add all cards to database
+            if (cardsToAdd.length > 0) {
+                let batchUpdates = {};
+                const cardsRef = db.ref(`lobbies/${currentLobbyId}/cards`);
+                
+                cardsToAdd.forEach((card, index) => {
+                    const tempKey = 'card_' + Date.now() + '_' + index;
+                    batchUpdates[`lobbies/${currentLobbyId}/cards/${tempKey}`] = card;
+                });
+                
+                db.ref().update(batchUpdates).then(() => {
+                    notify(`Deck spawned with ${successCount} cards! Shuffling...`, "success");
+                    // Now shuffle after all cards are confirmed added
+                    setTimeout(() => {
+                        shuffleDeck();
+                    }, 500);
+                }).catch(err => {
+                    notify(`Error spawning deck: ${err.message}`, "error");
+                });
+            }
         }
 
         function drawOpeningHand() { drawCardsLogic(7); }

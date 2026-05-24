@@ -25,22 +25,22 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// MTGJSON Data endpoint - Primary source for cards
-app.route('/api/mtgjson-card').get((req, res) => {
+// MTGJSON/Scryfall unified card endpoint
+app.route('/api/card-data').get((req, res) => {
     const cardName = req.query.exact;
     if (!cardName) return res.status(400).send('Missing card name');
     
-    // Try MTGJSON first
-    const mtgjsonUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&include_multilingual=true`;
+    // Use Scryfall API (official source that aggregates MTGJSON data)
+    const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
     
-    https.get(mtgjsonUrl, { headers: { 'User-Agent': 'MTGSandbox/1.0' } }, (proxyRes) => {
+    https.get(scryfallUrl, { headers: { 'User-Agent': 'MTGSandbox/1.0' } }, (proxyRes) => {
         let data = '';
         proxyRes.on('data', chunk => data += chunk);
         proxyRes.on('end', () => {
             if (proxyRes.statusCode === 200) {
                 try {
                     const cardData = JSON.parse(data);
-                    // Extract relevant card data
+                    // Return comprehensive card data from MTGJSON/Scryfall
                     const response = {
                         name: cardData.name,
                         image_uris: cardData.image_uris,
@@ -52,34 +52,19 @@ app.route('/api/mtgjson-card').get((req, res) => {
                         toughness: cardData.toughness,
                         colors: cardData.colors,
                         set: cardData.set,
-                        rarity: cardData.rarity
+                        rarity: cardData.rarity,
+                        keywords: cardData.keywords,
+                        layout: cardData.layout
                     };
                     res.json(response);
                 } catch (e) {
-                    res.status(500).send('Error parsing card data');
+                    res.status(500).json({ error: 'Error parsing card data' });
                 }
             } else {
-                res.status(proxyRes.statusCode).send('Card not found');
+                res.status(proxyRes.statusCode).json({ error: 'Card not found' });
             }
         });
-    }).on('error', (err) => res.status(500).send(err.message));
-});
-
-// Legacy endpoint - kept for backward compatibility
-app.route('/api/card-data').get((req, res) => {
-    const cardName = req.query.exact;
-    if (!cardName) return res.status(400).send('Missing card name');
-    
-    const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
-    
-    https.get(scryfallUrl, { headers: { 'User-Agent': 'MTGSandbox/1.0' } }, (proxyRes) => {
-        let data = '';
-        proxyRes.on('data', chunk => data += chunk);
-        proxyRes.on('end', () => {
-            if (proxyRes.statusCode === 200) res.json(JSON.parse(data));
-            else res.status(proxyRes.statusCode).send('Card not found');
-        });
-    }).on('error', (err) => res.status(500).send(err.message));
+    }).on('error', (err) => res.status(500).json({ error: err.message }));
 });
 
 app.route('/api/card-image').get((req, res) => {
