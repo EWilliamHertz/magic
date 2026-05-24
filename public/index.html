@@ -3,123 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MTG Sandbox</title>
+    <title>HatakePlay</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #000; 
-            color: white;
-            font-family: sans-serif;
-            overflow: hidden; 
-        }
-        #playmat {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-            background-image: url('playmat.png');
-            background-size: cover;
-            background-position: center;
-        }
-        #ui-panel {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 15px;
-            border-radius: 8px;
-            z-index: 100;
-        }
-        textarea {
-            width: 250px;
-            height: 100px;
-            background: #222;
-            color: #fff;
-            border: 1px solid #555;
-            margin-bottom: 10px;
-        }
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .card {
-            width: 140px;
-            height: 196px;
-            background-color: #1a1a1a;
-            border: 2px solid #000;
-            border-radius: 8px;
-            position: absolute;
-            cursor: grab;
-            background-size: cover;
-            background-position: center;
-        }
+        body { margin: 0; background-color: #2c3e50; color: white; font-family: sans-serif; overflow: hidden; }
         
-        /* HatakePlay UI Styles */
+        /* App Screens */
         .screen { display: none; width: 100vw; height: 100vh; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .active-screen { display: block; }
         
-        .center-box {
-            max-width: 500px; margin: 10vh auto; background: rgba(0, 0, 0, 0.85); padding: 30px; border-radius: 8px; text-align: center;
-        }
+        /* Layouts */
+        .center-box { max-width: 500px; margin: 10vh auto; background: rgba(0, 0, 0, 0.9); padding: 30px; border-radius: 8px; text-align: center; border: 1px solid #34495e; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .center-box h1 { color: #3498db; font-size: 2.5em; margin-bottom: 10px; }
-        .center-box input { width: 90%; padding: 10px; margin: 10px 0; background: #222; border: 1px solid #555; color: white; }
-        .center-box button { width: 45%; padding: 10px; margin: 5px; background: #3498db; border: none; color: white; cursor: pointer; border-radius: 4px; }
+        .center-box input, .center-box textarea, .center-box select { width: 90%; padding: 10px; margin: 10px 0; background: #222; border: 1px solid #555; color: white; }
+        .center-box button { width: 45%; padding: 10px; margin: 5px; background: #3498db; border: none; color: white; cursor: pointer; border-radius: 4px; font-weight: bold;}
         .center-box button.google-btn { width: 93%; background: #db4437; margin-top: 15px; }
         
         .dashboard-container { display: flex; gap: 20px; }
         .dashboard-panel { flex: 1; background: rgba(0, 0, 0, 0.85); padding: 20px; border-radius: 8px; }
-       .lobby-item { background: #333; padding: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
         
-        /* Playmat Zones & UI */
-        .zone { position: absolute; border: 2px dashed rgba(255,255,255,0.3); border-radius: 8px; pointer-events: auto; cursor: pointer; color: rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2em; text-transform: uppercase; z-index: 1; }
-        #hand-zone { bottom: 0; left: 0; width: 100vw; height: 220px; border-top: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); z-index: 0; position: absolute; }
+        /* Playmat Cards & Zones */
+        .card { width: 140px; height: 196px; background-color: #1a1a1a; border: 2px solid #000; border-radius: 8px; position: absolute; cursor: grab; background-size: cover; background-position: center; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; text-align: center; }
+        .zone { position: absolute; border: 2px dashed rgba(255,255,255,0.3); border-radius: 8px; pointer-events: auto; color: rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2em; text-transform: uppercase; z-index: 1; cursor: pointer; }
         
+        #hand-zone { bottom: 0; left: 0; width: 100vw; height: 220px; border-top: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6); z-index: 0; position: absolute; pointer-events: none; }
+        
+        /* Board Positioning */
         #my-deck-zone { bottom: 230px; right: 20px; width: 140px; height: 196px; }
         #my-grave-zone { bottom: 230px; right: 170px; width: 140px; height: 196px; }
         #my-exile-zone { bottom: 440px; right: 170px; width: 140px; height: 196px; }
+        #my-sideboard-zone { top: 50%; left: 20px; transform: translateY(-50%); width: 140px; height: 196px; border-color: rgba(241, 196, 15, 0.4); color: rgba(241, 196, 15, 0.6); }
         
-        .life-tracker { position: absolute; background: rgba(0,0,0,0.8); border: 2px solid #3498db; border-radius: 50%; width: 80px; height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; font-size: 24px; font-weight: bold; }
-        .life-btn { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0 10px; }
+        /* UI Game Buttons */
+        #btn-untap { position: absolute; top: 20px; right: 20px; z-index: 100; font-size: 28px; font-weight: bold; background: rgba(46, 204, 113, 0.9); border: 2px solid #27ae60; color: white; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: transform 0.1s; display: flex; justify-content: center; align-items: center;}
+        #btn-untap:active { transform: scale(0.9); }
+        
+        #btn-draw-hand { position: absolute; bottom: 230px; left: 50%; transform: translateX(-50%); z-index: 100; font-size: 16px; font-weight: bold; background: rgba(155, 89, 182, 0.9); border: 2px solid #8e44ad; color: white; border-radius: 8px; padding: 12px 30px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: background 0.2s;}
+        #btn-draw-hand:hover { background: rgba(142, 68, 173, 1); }
+
+        /* Life Trackers */
+        .life-tracker { position: absolute; background: rgba(0,0,0,0.9); border: 2px solid #3498db; border-radius: 50%; width: 80px; height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; font-size: 24px; font-weight: bold; }
+        .life-btn { background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0 10px; }
         .life-controls { display: flex; gap: 10px; margin-top: 5px; }
-        
         #my-life { bottom: 240px; left: 20px; }
-        #opp-life { top: 20px; right: 20px; border-color: #e74c3c; } 
+        #opp-life { top: 20px; left: 20px; border-color: #e74c3c; display: none; }
         
-        /* Custom Right-Click Context Menu */
-        #context-menu {
-            display: none;
-            position: absolute;
-            background: #2c3e50;
-            border: 1px solid #34495e;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.8);
-            border-radius: 6px;
-            z-index: 2000;
-            min-width: 160px;
-            overflow: hidden;
-        }
-        .menu-item {
-            padding: 12px 15px;
-            cursor: pointer;
-            color: white;
-            font-size: 14px;
-            border-bottom: 1px solid #1a252f;
-            transition: background 0.1s;
-        }
+        /* Rules Engine Visuals */
+        .counter-badge { position: absolute; top: -10px; right: -10px; background: #e74c3c; border: 2px solid #000; color: white; font-weight: bold; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        
+        /* Custom Context Menu */
+        #context-menu { display: none; position: absolute; background: #2c3e50; border: 1px solid #34495e; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 6px; z-index: 2000; min-width: 160px; overflow: hidden; }
+        .menu-item { padding: 12px 15px; cursor: pointer; color: white; font-size: 14px; border-bottom: 1px solid #1a252f; transition: background 0.1s; }
         .menu-item:hover { background: #3498db; }
-        .menu-item:last-child { border-bottom: none; }
     </style>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
-    
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
+
     <div id="landing-screen" class="screen active-screen">
         <div class="center-box">
             <h1>HatakePlay</h1>
@@ -136,29 +78,28 @@
 
     <div id="dashboard-screen" class="screen">
         <h2>Welcome to HatakePlay, <span id="user-display-name">Planeswalker</span></h2>
-        <button onclick="logout()">Logout</button>
+        <button onclick="logout()" style="background: #e74c3c; border:none; padding:8px 15px; color:white; border-radius:4px; cursor:pointer;">Logout</button>
         <hr>
         <div class="dashboard-container">
             <div class="dashboard-panel">
                 <h3>My Inventory</h3>
-                <button onclick="showScreen('deck-builder-screen')">Create New Deck</button>
+                <button onclick="openDeckBuilder()" style="background: #2ecc71; border:none; padding:10px 15px; color:white; border-radius:4px; cursor:pointer; width:100%;">+ Create New Deck</button>
                 <div id="user-decks-list" style="margin-top: 15px;"></div>
             </div>
             <div class="dashboard-panel">
-                <h3>Game Lobbies</h3>
-                <select id="lobby-format">
+                <h3>Game Matchmaking</h3>
+                <select id="lobby-format" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #222; color:white; border:1px solid #555;">
                     <option value="STANDARD">STANDARD</option>
                     <option value="MODERN">MODERN</option>
                     <option value="PREMODERN">PREMODERN</option>
                     <option value="LEGACY">LEGACY</option>
                 </select>
-                <select id="lobby-max-players">
+                <select id="lobby-max-players" style="width: 100%; padding: 8px; margin-bottom: 10px; background: #222; color:white; border:1px solid #555;">
                     <option value="1">1 Player (Solo Test)</option>
                     <option value="2">2 Players (Match)</option>
                 </select>
-                <button onclick="createLobby()">Create Lobby</button>
+                <button onclick="createLobby()" style="background: #3498db; border:none; padding:10px 15px; color:white; border-radius:4px; cursor:pointer; width:100%;">Create Lobby</button>
                 <hr>
-                <input type="text" id="lobby-search" placeholder="Filter lobbies..." style="width: 100%; padding: 8px; margin-bottom: 10px;">
                 <div id="lobbies-list"></div>
             </div>
         </div>
@@ -166,9 +107,9 @@
     
     <div id="deck-builder-screen" class="screen">
         <div class="center-box">
-            <h2 id="deck-builder-title">Deck Builder</h2>
+            <h2 id="deck-builder-title">Create New Deck</h2>
             <input type="text" id="new-deck-name" placeholder="Deck Name (e.g., Burn)">
-            <textarea id="new-deck-list" placeholder="4 Lightning Bolt&#10;4 Goblin Guide" style="width: 90%; height: 150px; background: #222; color: white; margin-top:10px;"></textarea>
+            <textarea id="new-deck-list" placeholder="4 Lightning Bolt&#10;4 Goblin Guide&#10;Sideboard&#10;2 Blood Moon" style="width: 90%; height: 150px; background: #222; color: white; margin-top:10px;"></textarea>
             <div>
                 <button onclick="saveDeck()">Save Deck</button>
                 <button onclick="showScreen('dashboard-screen')" style="background: #555;">Cancel</button>
@@ -180,28 +121,39 @@
         <div class="center-box">
             <h2>Lobby: <span id="current-lobby-format"></span></h2>
             <p>Players: <span id="lobby-player-count">0</span> / <span id="lobby-max-display"></span></p>
-            
-            <div id="lobby-players-list" style="background: #222; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: left; border: 1px solid #555;">
-                </div>
-            
+            <div id="lobby-players-list" style="background: #222; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: left; border: 1px solid #555;"></div>
             <p>Status: <span id="lobby-status" style="color: #f1c40f; font-weight: bold;">Waiting for players...</span></p>
-            
             <button id="ready-btn" onclick="toggleReadyStrict()">Ready Up</button>
         </div>
     </div>
 
     <div id="context-menu">
         <div class="menu-item" onclick="contextAction('flip')">Flip Face Up/Down</div>
+        <div class="menu-item" style="color: #2ecc71;" onclick="contextAction('add-counter')">Add Counter (+1)</div>
+        <div class="menu-item" style="color: #e74c3c;" onclick="contextAction('sub-counter')">Remove Counter (-1)</div>
         <div class="menu-item" onclick="contextAction('hand')">Move to Hand</div>
+        <div class="menu-item" onclick="contextAction('deck')">Send to Library (Top)</div>
         <div class="menu-item" onclick="contextAction('grave')">Send to Graveyard</div>
         <div class="menu-item" onclick="contextAction('exile')">Send to Exile</div>
     </div>
 
     <div id="playmat" class="screen" style="position: relative; overflow: hidden; padding: 0;">
-        <div id="hand-zone">HAND ZONE (Hidden from opponent)</div>
-        <div id="my-deck-zone" class="zone" ondblclick="drawCard()">Deck</div>
+        
+        <div id="spawn-modal" class="center-box" style="position: absolute; top: 15vh; left: 50%; transform: translateX(-50%); z-index: 2000; display: none;">
+            <h3 style="margin-top: 0; color: #3498db; font-size: 1.8em;">Prepare for Battle</h3>
+            <p style="color: #aaa; margin-bottom: 20px;">Select a deck to bring to the table.</p>
+            <select id="playmat-deck-select" style="width: 100%; margin-bottom: 15px; padding: 12px; background: #222; color: white; border: 1px solid #555; font-size: 1.1em;">
+                <option value="">Select a saved deck...</option>
+            </select>
+            <button onclick="importSavedDeck()" style="width: 100%; background: #2ecc71; color: white; border: none; padding: 14px; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 1.1em;">Spawn Deck</button>
+            <button onclick="document.getElementById('spawn-modal').style.display='none'" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 4px; margin-top: 10px;">Close & Play Without Deck</button>
+        </div>
+
+        <div id="hand-zone"></div>
+        <div id="my-deck-zone" class="zone" ondblclick="drawCard()" oncontextmenu="drawCard(); return false;">Library</div>
         <div id="my-grave-zone" class="zone">Graveyard</div>
         <div id="my-exile-zone" class="zone">Exile</div>
+        <div id="my-sideboard-zone" class="zone">Sideboard</div>
 
         <div id="my-life" class="life-tracker">
             <span id="my-life-total">20</span>
@@ -210,94 +162,84 @@
                 <button class="life-btn" onclick="updateLife(1)">+</button>
             </div>
         </div>
-        <div id="opp-life" class="life-tracker" style="display: none;">
+        <div id="opp-life" class="life-tracker">
             <span id="opp-life-total">20</span>
         </div>
 
         <div id="card-layer" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10;"></div>
         
-        <div id="game-controls" style="position: absolute; bottom: 10px; right: 10px; z-index: 100;">
-            <button onclick="takeMulligan()">Mulligan</button>
-        </div>
-        <div id="ui-panel" style="position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 8px;">
-            <h3>Load Deck</h3>
-            <select id="playmat-deck-select" style="width: 100%; margin-bottom: 10px; padding: 5px;">
-                <option value="">Select a saved deck...</option>
-            </select>
-            <button onclick="importSavedDeck()" style="width: 100%; margin-bottom: 10px;">Spawn Deck</button>
-            <hr style="border-color: #444;">
-            <button onclick="drawOpeningHand()" style="background: #9b59b6; width: 100%;">Draw Opening Hand (7)</button>
-        </div>
+        <button id="btn-untap" onclick="untapAll()" title="Untap All">⟲</button>
+        <button id="btn-draw-hand" onclick="drawOpeningHand()">Draw Opening Hand (7)</button>
     </div>
 
     <script>
+        // --- NATIVE NOTIFICATION ENGINE ---
+        function notify(msg, type = "success") {
+            const colors = { success: "#2ecc71", error: "#e74c3c", info: "#3498db" };
+            const toast = document.createElement('div');
+            toast.innerText = msg;
+            toast.style.cssText = `position:fixed; bottom:20px; right:20px; background-color:${colors[type] || colors.info}; color:white; padding:12px 20px; border-radius:5px; box-shadow:0 4px 6px rgba(0,0,0,0.3); z-index:9999; opacity:0; transition:all 0.3s ease; transform:translateY(20px); font-family:sans-serif;`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; }, 10);
+            setTimeout(() => {
+                toast.style.opacity = '0'; toast.style.transform = 'translateY(20px)';
+                setTimeout(() => { if (toast.parentNode) document.body.removeChild(toast); }, 300);
+            }, 4000);
+        }
+
+        // --- FIREBASE INITIALIZATION ---
         let db, auth, googleProvider;
-        
-        // Fetch secrets from the backend
         async function initApp() {
-            const res = await fetch('/api/config');
-            const firebaseConfig = await res.json();
-            
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
-            auth = firebase.auth();
-            googleProvider = new firebase.auth.GoogleAuthProvider();
-            
-            console.log("Firebase secured and connected!");
-            setupAuthListeners();
+            try {
+                const res = await fetch('/api/config');
+                const firebaseConfig = await res.json();
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                auth = firebase.auth();
+                googleProvider = new firebase.auth.GoogleAuthProvider();
+                setupAuthListeners();
+            } catch (err) {
+                notify("Critical Error: Could not connect to backend server.", "error");
+            }
         }
         initApp();
 
         // --- STATE MANAGEMENT ---
         let currentUser = null;
         let currentLobbyId = null;
-        let mulliganCount = 0;
+        let gameStarted = false;
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active-screen'));
             document.getElementById(screenId).classList.add('active-screen');
-            if (screenId === 'playmat') document.body.style.background = "url('playmat.jpg') center/cover";
+            if (screenId === 'playmat') document.body.style.background = "url('playmat.png') center/cover";
             else document.body.style.background = "#2c3e50";
         }
 
         // --- AUTHENTICATION ---
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('user-display-name').innerText = user.displayName || user.email;
-                showScreen('dashboard-screen');
-                listenToLobbies();
-            } else {
-                currentUser = null;
-                showScreen('landing-screen');
-            }
-        });
-
-        function registerEmail() {
-            const e = document.getElementById('auth-email').value;
-            const p = document.getElementById('auth-password').value;
-            auth.createUserWithEmailAndPassword(e, p).catch(err => alert(err.message));
+        function setupAuthListeners() {
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-display-name').innerText = user.displayName || user.email;
+                    showScreen('dashboard-screen');
+                    listenToLobbies();
+                    listenToUserDecks();
+                } else {
+                    currentUser = null;
+                    showScreen('landing-screen');
+                }
+            });
         }
+        function registerEmail() { const e = document.getElementById('auth-email').value; const p = document.getElementById('auth-password').value; auth.createUserWithEmailAndPassword(e, p).catch(err => notify(err.message, "error")); }
+        function loginEmail() { const e = document.getElementById('auth-email').value; const p = document.getElementById('auth-password').value; auth.signInWithEmailAndPassword(e, p).catch(err => notify(err.message, "error")); }
+        function loginGoogle() { auth.signInWithPopup(googleProvider).catch(err => notify(err.message, "error")); }
+        function logout() { auth.signOut(); gameStarted = false; currentLobbyId = null; }
 
-        function loginEmail() {
-            const e = document.getElementById('auth-email').value;
-            const p = document.getElementById('auth-password').value;
-            auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
-        }
-
-        function loginGoogle() {
-            auth.signInWithPopup(googleProvider).catch(err => alert(err.message));
-        }
-
-        function logout() {
-            auth.signOut();
-        }
-
-        // --- DECK MANAGEMENT (CRUD & HISTORY) ---
+        // --- DECK MANAGEMENT ---
         let userDecks = {};
         let editingDeckId = null;
 
-        // Repurposed the Create New Deck button to handle editing as well
         function openDeckBuilder(deckId = null) {
             editingDeckId = deckId;
             if (deckId && userDecks[deckId]) {
@@ -313,29 +255,27 @@
         }
 
         function saveDeck() {
-            if (!currentUser) return notify("You must be logged in to save decks.", "error");
-            
+            if (!currentUser) return notify("You must be logged in.", "error");
             const name = document.getElementById('new-deck-name').value.trim();
             const list = document.getElementById('new-deck-list').value.trim();
-            if (!name || !list) return notify("Please provide a name and decklist.", "error");
+            if (!name || !list) return notify("Name and decklist required.", "error");
             
             const deckData = { name, list, lastEdited: Date.now() };
-
             const dbRef = editingDeckId 
                 ? db.ref(`users/${currentUser.uid}/decks/${editingDeckId}`).update(deckData)
                 : db.ref(`users/${currentUser.uid}/decks`).push({ ...deckData, playtests: 0, lastPlayed: "Never" });
 
             dbRef.then(() => {
-                notify(`Deck "${name}" saved!`, "success");
+                notify(`Deck saved successfully!`, "success");
                 showScreen('dashboard-screen');
+                editingDeckId = null;
             }).catch(err => notify(`Save failed: ${err.message}`, "error"));
         }
 
         function deleteDeck(deckId) {
-            if (confirm("Are you sure you want to delete this deck?")) {
+            if (confirm("Delete this deck?")) {
                 db.ref(`users/${currentUser.uid}/decks/${deckId}`).remove()
-                    .then(() => notify("Deck deleted.", "info"))
-                    .catch(err => notify("Failed to delete.", "error"));
+                    .then(() => notify("Deck deleted.", "info"));
             }
         }
 
@@ -353,17 +293,13 @@
                     const playedStr = deck.lastPlayed === "Never" ? "Never" : new Date(deck.lastPlayed).toLocaleDateString();
                     
                     listDiv.innerHTML += `
-                        <div style="background:#333; padding:15px; margin-bottom:10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="background:#333; padding:15px; margin-bottom:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div><strong style="color:#3498db; font-size:1.1em;">${deck.name}</strong><br><span style="font-size:0.85em; color:#aaa;">Plays: ${deck.playtests || 0} | Last: ${playedStr}</span></div>
                             <div>
-                                <strong style="color: #3498db; font-size: 1.1em;">${deck.name}</strong><br>
-                                <span style="font-size: 0.85em; color: #aaa;">Playtests: ${deck.playtests || 0} | Last used: ${playedStr}</span>
-                            </div>
-                            <div>
-                                <button onclick="openDeckBuilder('${deckId}')" style="background: #f39c12; padding: 5px 10px; margin-right: 5px;">Edit</button>
-                                <button onclick="deleteDeck('${deckId}')" style="background: #e74c3c; padding: 5px 10px;">Delete</button>
+                                <button onclick="openDeckBuilder('${deckId}')" style="background:#f39c12; border:none; padding:8px 12px; border-radius:4px; color:white; cursor:pointer;">Edit</button>
+                                <button onclick="deleteDeck('${deckId}')" style="background:#e74c3c; border:none; padding:8px 12px; border-radius:4px; color:white; cursor:pointer; margin-left:5px;">Del</button>
                             </div>
                         </div>`;
-                    
                     selectDiv.innerHTML += `<option value="${deckId}">${deck.name}</option>`;
                 });
             });
@@ -377,500 +313,295 @@
             currentLobbyId = newLobbyRef.key;
             
             const myName = currentUser.displayName || currentUser.email;
-            
             newLobbyRef.set({
-                format: format,
-                maxPlayers: maxPlayers,
-                hostId: currentUser.uid,
-                hostName: myName,
-                status: 'waiting',
-                players: {
-                    [currentUser.uid]: { name: myName, ready: false, life: 20 }
-                }
+                format: format, maxPlayers: maxPlayers, hostId: currentUser.uid, status: 'waiting',
+                players: { [currentUser.uid]: { name: myName, ready: false, life: 20 } }
             });
-            
-            document.getElementById('current-lobby-format').innerText = format;
-            document.getElementById('lobby-max-display').innerText = maxPlayers;
             showScreen('game-lobby-screen');
             listenToCurrentLobby();
         }
 
-        function joinLobby(lobbyId, format) {
+        function joinLobby(lobbyId) {
             currentLobbyId = lobbyId;
-            const myName = currentUser.displayName || currentUser.email;
-            
-            db.ref(`lobbies/${lobbyId}/players/${currentUser.uid}`).set({ name: myName, ready: false, life: 20 });
-            document.getElementById('current-lobby-format').innerText = format;
-            
-            db.ref(`lobbies/${lobbyId}/maxPlayers`).once('value', snap => {
-                document.getElementById('lobby-max-display').innerText = snap.val();
-            });
+            db.ref(`lobbies/${lobbyId}/players/${currentUser.uid}`).set({ name: currentUser.displayName || currentUser.email, ready: false, life: 20 });
             showScreen('game-lobby-screen');
             listenToCurrentLobby();
         }
 
-       // STRICT READY TOGGLE: Uses atomic transactions to guarantee success
+        function listenToLobbies() {
+            db.ref('lobbies').on('value', (snapshot) => {
+                const list = document.getElementById('lobbies-list');
+                list.innerHTML = '';
+                snapshot.forEach(child => {
+                    const lobby = child.val();
+                    if (lobby.status === 'waiting') {
+                        list.innerHTML += `<div style="background:#333; padding:12px; margin-bottom:10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                                <strong>${lobby.hostName || 'Player'}'s Lobby [${lobby.format}]</strong>
+                                <button onclick="joinLobby('${child.key}')" style="background:#2ecc71; border:none; color:white; padding:8px 15px; border-radius:4px; cursor:pointer;">Join</button>
+                            </div>`;
+                    }
+                });
+            });
+        }
+
         function toggleReadyStrict() {
-            if (!currentLobbyId || !currentUser) return alert("Error: Lobby sync lost. Please refresh.");
-            
+            if (!currentLobbyId || !currentUser) return notify("Error: Sync lost.", "error");
             const playerRef = db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/ready`);
-            
-            playerRef.transaction((currentReadyState) => {
-                // If it's true, make it false. If false/null, make it true.
-                return !currentReadyState; 
-            }, (error, committed, snapshot) => {
-                if (error) {
-                    console.error("Transaction failed abnormally!", error);
-                    alert(`Failed to ready up: ${error.message}`);
-                } else if (committed) {
-                    console.log("Ready state successfully flipped to: ", snapshot.val());
-                }
-            });
+            playerRef.transaction(currentReadyState => !currentReadyState);
         }
-
-        function updateLife(amount) {
-            db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/life`).transaction(currentLife => {
-                return (currentLife || 20) + amount;
-            });
-        }
-
-        // --- NOTIFICATION ENGINE ---
-        function notify(msg, type = "success") {
-            const colors = {
-                success: "linear-gradient(to right, #00b09b, #96c93d)",
-                error: "linear-gradient(to right, #ff5f6d, #ffc371)",
-                info: "linear-gradient(to right, #3498db, #2980b9)"
-            };
-            Toastify({
-                text: msg,
-                duration: 3000,
-                gravity: "bottom",
-                position: "right",
-                style: { background: colors[type] || colors.info }
-            }).showToast();
-        }
-
-        let gameStarted = false; 
 
         function listenToCurrentLobby() {
             db.ref(`lobbies/${currentLobbyId}`).on('value', (snapshot) => {
                 const lobby = snapshot.val();
                 if (!lobby) return;
 
+                document.getElementById('current-lobby-format').innerText = lobby.format;
                 document.getElementById('lobby-max-display').innerText = lobby.maxPlayers;
+                
                 const playersArray = Object.entries(lobby.players || {});
                 document.getElementById('lobby-player-count').innerText = playersArray.length;
                 
                 let playersHtml = '';
                 playersArray.forEach(([uid, data]) => {
                     const readyColor = data.ready ? '#2ecc71' : '#e74c3c';
-                    const readyText = data.ready ? 'READY' : 'NOT READY';
-                    const youText = uid === currentUser.uid ? ' (You)' : '';
-                    
-                    playersHtml += `<div style="padding: 8px 5px; border-bottom: 1px solid #444; color: ${readyColor};">
-                        <strong style="color: white;">${data.name}${youText}</strong> - ${readyText}
-                    </div>`;
-                    
-                    if (uid === currentUser.uid) {
-                        document.getElementById('my-life-total').innerText = data.life || 20;
-                    } else {
-                        document.getElementById('opp-life').style.display = 'flex';
-                        document.getElementById('opp-life-total').innerText = data.life || 20;
-                    }
+                    playersHtml += `<div style="padding: 8px; border-bottom: 1px solid #444; color: ${readyColor}; font-size:1.1em;"><strong style="color:white;">${data.name}</strong> - ${data.ready ? 'READY' : 'NOT READY'}</div>`;
+                    if (uid === currentUser.uid) document.getElementById('my-life-total').innerText = data.life || 20;
+                    else { document.getElementById('opp-life').style.display = 'flex'; document.getElementById('opp-life-total').innerText = data.life || 20; }
                 });
                 document.getElementById('lobby-players-list').innerHTML = playersHtml;
 
-                const myPlayerData = lobby.players[currentUser.uid];
-                if (myPlayerData) {
-                    const readyBtn = document.getElementById('ready-btn');
-                    readyBtn.innerText = myPlayerData.ready ? "Unready" : "Ready Up";
-                    readyBtn.style.background = myPlayerData.ready ? "#e74c3c" : "#3498db";
+                const myData = lobby.players[currentUser.uid];
+                if (myData) {
+                    const btn = document.getElementById('ready-btn');
+                    btn.innerText = myData.ready ? "Unready" : "Ready Up";
+                    btn.style.background = myData.ready ? "#e74c3c" : "#3498db";
                 }
 
-                // --- STRICT STATUS ROUTING ---
-                // If playing, start game immediately and skip waiting logic
                 if (lobby.status === 'playing') {
-                    if (!gameStarted) {
-                        gameStarted = true;
-                        notify("Match started!", "success");
-                        startGame();
+                    if (!gameStarted) { 
+                        gameStarted = true; 
+                        notify("Match started!", "success"); 
+                        startGame(); 
                     }
                     return; 
                 }
 
-                // If waiting, evaluate readiness
                 if (lobby.status === 'waiting') {
                     const allReady = (playersArray.length === lobby.maxPlayers) && playersArray.every(([, p]) => p.ready);
-                    const isHost = lobby.hostId === currentUser.uid;
-
-                    if (allReady) {
-                        document.getElementById('lobby-status').innerText = "All players ready! Booting table...";
-                        document.getElementById('lobby-status').style.color = "#2ecc71";
-                        if (isHost) db.ref(`lobbies/${currentLobbyId}/status`).set('playing');
-                    } else {
-                        document.getElementById('lobby-status').innerText = "Waiting for players to ready up...";
-                        document.getElementById('lobby-status').style.color = "#f1c40f";
-                    }
+                    // ANY player can safely push state to playing if all are ready. This guarantees it fires.
+                    if (allReady) db.ref(`lobbies/${currentLobbyId}/status`).set('playing');
                 }
             });
         }
-        // --- GAME LOGIC & TABLE RENDERER ---
-        function startGame() {
-            showScreen('playmat');
-            document.getElementById('playmat').style.background = "url('playmat.png') center/cover";
-            mulliganCount = 0;
-            listenToTable();
+
+        function updateLife(amount) {
+            db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/life`).transaction(currentLife => (currentLife || 20) + amount);
         }
 
-        function drawCard() {
-            if (!currentLobbyId || !currentUser) return;
-            
-            db.ref(`lobbies/${currentLobbyId}/cards`).once('value', (snapshot) => {
-                let deckCards = [];
-                let handCount = 0;
-                
-                const deckZoneX = window.innerWidth - 160;
-                const deckZoneY = window.innerHeight - 430;
-                
-                snapshot.forEach(child => {
-                    const card = child.val();
-                    if (card.owner === currentUser.uid) {
-                        // Identify if the card is stacked within our deck boundary parameters
-                        const inDeckX = Math.abs(card.x - deckZoneX) < 60;
-                        const inDeckY = Math.abs(card.y - deckZoneY) < 60;
-                        
-                        if (inDeckX && inDeckY) {
-                            deckCards.push({ id: child.key, card: card });
-                        } else if (card.y > window.innerHeight - 220) {
-                            handCount++; // Track existing cards in hand to compute staggering offsets
-                        }
-                    }
-                });
-                
-                if (deckCards.length === 0) {
-                    alert("Your library is empty! Please load your deck list from the control menu first.");
-                    return;
-                }
-                
-                // Pick the top element from the array
-                const topCard = deckCards[0];
-                
-                // Math matrix to line cards up across your private play space perfectly
-                const newHandX = 50 + (handCount * 155) % (window.innerWidth - 300);
-                const newHandY = window.innerHeight - 190;
-                
-                db.ref(`lobbies/${currentLobbyId}/cards/${topCard.id}`).update({
-                    x: newHandX,
-                    y: newHandY,
-                    faceUp: true,
-                    tapped: false
-                });
-            });
+        // --- GAMEPLAY ENGINE ---
+        function startGame() { 
+            showScreen('playmat'); 
+            document.getElementById('spawn-modal').style.display = 'block';
+            listenToTable(); 
         }
 
-        function drawOpeningHand() {
-            if (!currentLobbyId || !currentUser) return;
-            
-            db.ref(`lobbies/${currentLobbyId}/cards`).once('value', (snapshot) => {
-                let deckCards = [];
-                const deckZoneX = window.innerWidth - 160;
-                const deckZoneY = window.innerHeight - 430;
-                
-                snapshot.forEach(child => {
-                    const card = child.val();
-                    if (card.owner === currentUser.uid) {
-                        const inDeckX = Math.abs(card.x - deckZoneX) < 60;
-                        const inDeckY = Math.abs(card.y - deckZoneY) < 60;
-                        if (inDeckX && inDeckY) deckCards.push({ id: child.key, card: card });
-                    }
-                });
-                
-                if (deckCards.length < 7) return alert("Not enough cards in library to draw 7!");
-                
-                // Draw exactly 7 cards
-                let updates = {};
-                for (let i = 0; i < 7; i++) {
-                    const topCard = deckCards[i];
-                    // Fan them out in the hand zone
-                    const newHandX = 50 + (i * 120); 
-                    const newHandY = window.innerHeight - 190;
-                    
-                    updates[`lobbies/${currentLobbyId}/cards/${topCard.id}/x`] = newHandX;
-                    updates[`lobbies/${currentLobbyId}/cards/${topCard.id}/y`] = newHandY;
-                    updates[`lobbies/${currentLobbyId}/cards/${topCard.id}/faceUp`] = true;
-                    updates[`lobbies/${currentLobbyId}/cards/${topCard.id}/tapped`] = false;
-                }
-                
-                // Execute all updates simultaneously
-                db.ref().update(updates);
-            });
-        }
-
-        let draggedCard = null;
-        let draggedCardOwner = null;
-        let offsetX = 0, offsetY = 0;
-        const CARD_WIDTH = 140;
-        const CARD_HEIGHT = 196;
-        const CARD_BACK = "https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering_card_back.jpg";
+        let draggedCard = null, draggedCardOwner = null, offsetX = 0, offsetY = 0;
+        const CARD_WIDTH = 140, CARD_HEIGHT = 196, CARD_BACK = "https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering_card_back.jpg";
 
         function listenToTable() {
             db.ref(`lobbies/${currentLobbyId}/cards`).on('value', (snapshot) => {
                 const layer = document.getElementById('card-layer');
                 layer.innerHTML = ''; 
                 
+                const deckZoneX = window.innerWidth - 160;
+                const deckZoneY = window.innerHeight - 430;
+                
                 snapshot.forEach(child => {
                     const cardData = child.val();
                     const cardId = child.key;
-                    
                     const isMine = cardData.owner === currentUser.uid;
                     
-                    // INVERSION LOGIC: If it's the opponent's card, invert the coordinates!
                     const renderX = isMine ? cardData.x : window.innerWidth - cardData.x - CARD_WIDTH;
                     const renderY = isMine ? cardData.y : window.innerHeight - cardData.y - CARD_HEIGHT;
-                    
-                    // PRIVACY LOGIC: Is it in their hand?
-                    // If y > height - 220, it is in the owner's hand zone.
                     const isInOwnersHand = cardData.y > window.innerHeight - 220;
-                    
-                    // We only show the face if (1) It's faceUp AND (2) It's NOT in the opponent's hand.
-                    // (Meaning you can see your own hand, but the opponent's hand is always a card back to you).
                     const showFace = cardData.faceUp && (isMine || !isInOwnersHand);
+                    const isInMyDeck = isMine && Math.abs(cardData.x - deckZoneX) < 60 && Math.abs(cardData.y - deckZoneY) < 60;
                     
                     const cardEl = document.createElement('div');
                     cardEl.className = 'card';
                     cardEl.style.left = `${renderX}px`;
                     cardEl.style.top = `${renderY}px`;
                     
-                    cardEl.style.backgroundImage = `url('${showFace ? cardData.image : CARD_BACK}')`;
+                    // Fallback Text Engine if image fails
+                    if (cardData.image === "none" && showFace) {
+                        cardEl.style.backgroundColor = '#444';
+                        cardEl.innerHTML = `<div style="padding:10px; font-weight:bold; font-size:14px; color:white;">${cardData.name}</div>`;
+                    } else {
+                        cardEl.style.backgroundImage = `url('${showFace ? cardData.image : CARD_BACK}')`;
+                        cardEl.innerHTML = '';
+                    }
+
                     cardEl.style.transform = cardData.tapped ? 'rotate(90deg)' : 'rotate(0deg)';
                     cardEl.style.transition = 'transform 0.15s ease-in-out'; 
                     
+                    // Rules Engine: Render Counters
+                    if (cardData.counters && cardData.counters !== 0) {
+                        const badge = document.createElement('div');
+                        badge.className = 'counter-badge';
+                        badge.innerText = cardData.counters > 0 ? `+${cardData.counters}` : cardData.counters;
+                        cardEl.appendChild(badge);
+                    }
+                    
                     cardEl.onmousedown = (e) => {
                         if (e.button !== 0) return; 
-                        draggedCard = cardId;
-                        draggedCardOwner = cardData.owner;
-                        offsetX = e.clientX - renderX;
-                        offsetY = e.clientY - renderY;
+                        draggedCard = cardId; draggedCardOwner = cardData.owner;
+                        offsetX = e.clientX - renderX; offsetY = e.clientY - renderY;
                         cardEl.style.zIndex = 1000;
                     };
-
-                   cardEl.ondblclick = (e) => {
-                        if (isMine) db.ref(`lobbies/${currentLobbyId}/cards/${cardId}`).update({ tapped: !cardData.tapped });
-                    };
-
-                    // NEW CONTEXT MENU TRIGGER
-                    cardEl.oncontextmenu = (e) => {
-                        e.preventDefault(); 
-                        if (!isMine) return; // Only control your own cards
-                        
-                        contextCardId = cardId;
-                        contextCardData = cardData;
-                        
-                        const menu = document.getElementById('context-menu');
-                        menu.style.display = 'block';
-                        menu.style.left = `${e.clientX}px`;
-                        menu.style.top = `${e.clientY}px`;
-                    };
+                    
+                    // Library Quick-Draw Mechanics vs Standard Tap/Flip
+                    if (isInMyDeck) {
+                        cardEl.ondblclick = (e) => { e.stopPropagation(); drawCard(); };
+                        cardEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); drawCard(); };
+                    } else {
+                        cardEl.ondblclick = (e) => { if (isMine) db.ref(`lobbies/${currentLobbyId}/cards/${cardId}`).update({ tapped: !cardData.tapped }); };
+                        cardEl.oncontextmenu = (e) => {
+                            e.preventDefault(); 
+                            if (!isMine) return;
+                            contextCardId = cardId; contextCardData = cardData;
+                            const menu = document.getElementById('context-menu');
+                            menu.style.display = 'block'; menu.style.left = `${e.clientX}px`; menu.style.top = `${e.clientY}px`;
+                        };
+                    }
                     
                     layer.appendChild(cardEl);
                 });
             });
-            
-            // Close context menu if clicking anywhere else
-            document.addEventListener('click', (e) => {
-                const menu = document.getElementById('context-menu');
-                if (menu.style.display === 'block') menu.style.display = 'none';
-            });
 
+            document.addEventListener('click', () => { document.getElementById('context-menu').style.display = 'none'; });
             document.addEventListener('mouseup', (e) => {
                 if (draggedCard) {
                     const isMine = draggedCardOwner === currentUser.uid;
-                    let newX = e.clientX - offsetX;
-                    let newY = e.clientY - offsetY;
-
-                    if (!isMine) {
-                        newX = window.innerWidth - newX - CARD_WIDTH;
-                        newY = window.innerHeight - newY - CARD_HEIGHT;
-                    }
-                    
+                    let newX = e.clientX - offsetX, newY = e.clientY - offsetY;
+                    if (!isMine) { newX = window.innerWidth - newX - CARD_WIDTH; newY = window.innerHeight - newY - CARD_HEIGHT; }
                     db.ref(`lobbies/${currentLobbyId}/cards/${draggedCard}`).update({ x: newX, y: newY });
                     draggedCard = null;
                 }
             });
         }
 
-        // --- CONTEXT MENU ACTIONS ---
-        let contextCardId = null;
-        let contextCardData = null;
-
+        // --- CONTEXT MENU & GAME RULES MECHANICS ---
+        let contextCardId = null, contextCardData = null;
         function contextAction(action) {
-            if (!contextCardId || !currentLobbyId) return;
+            if (!contextCardId) return;
+            const ref = db.ref(`lobbies/${currentLobbyId}/cards/${contextCardId}`);
             
-            const cardRef = db.ref(`lobbies/${currentLobbyId}/cards/${contextCardId}`);
+            if (action === 'flip') ref.update({ faceUp: !contextCardData.faceUp });
+            else if (action === 'add-counter') ref.update({ counters: (contextCardData.counters || 0) + 1 });
+            else if (action === 'sub-counter') ref.update({ counters: (contextCardData.counters || 0) - 1 });
+            else if (action === 'hand') ref.update({ x: 100, y: window.innerHeight - 150, faceUp: true, tapped: false });
+            else if (action === 'deck') ref.update({ x: window.innerWidth - 160, y: window.innerHeight - 430, faceUp: false, tapped: false });
+            else if (action === 'grave') { const r = document.getElementById('my-grave-zone').getBoundingClientRect(); ref.update({ x: r.left, y: r.top, faceUp: true, tapped: false }); }
+            else if (action === 'exile') { const r = document.getElementById('my-exile-zone').getBoundingClientRect(); ref.update({ x: r.left, y: r.top, faceUp: true, tapped: false }); }
             
-            // We use getBoundingClientRect() to precisely calculate exactly where your zones are 
-            // rendered on your specific screen size, ensuring perfect drops.
-            
-            if (action === 'flip') {
-                cardRef.update({ faceUp: !contextCardData.faceUp });
-            } 
-            else if (action === 'hand') {
-                cardRef.update({
-                    x: Math.floor(Math.random() * 200) + 100, // Drop somewhere in the hand area
-                    y: window.innerHeight - 150,
-                    faceUp: true,
-                    tapped: false
-                });
-            } 
-            else if (action === 'grave') {
-                const rect = document.getElementById('my-grave-zone').getBoundingClientRect();
-                cardRef.update({
-                    x: rect.left + Math.floor(Math.random() * 6), // Add 3D stack jitter
-                    y: rect.top + Math.floor(Math.random() * 6),
-                    faceUp: true,
-                    tapped: false
-                });
-            } 
-            else if (action === 'exile') {
-                const rect = document.getElementById('my-exile-zone').getBoundingClientRect();
-                cardRef.update({
-                    x: rect.left + Math.floor(Math.random() * 6),
-                    y: rect.top + Math.floor(Math.random() * 6),
-                    faceUp: true,
-                    tapped: false
-                });
-            }
-            
-            // Reset context tracking
-            document.getElementById('context-menu').style.display = 'none';
-            contextCardId = null;
-            contextCardData = null;
+            contextCardId = null; contextCardData = null;
         }
 
-        // --- DECK IMPORTER ---
-        async function importSavedDeck() {
-            if (!currentLobbyId) return alert("You must be in a game to spawn a deck!");
-            
-            const deckId = document.getElementById('playmat-deck-select').value;
-            if (!deckId) return alert("Please select a deck.");
-            
-            const deckText = userDecks[deckId].list;
-            const lines = deckText.split('\n');
-            
-            for (let line of lines) {
-                line = line.trim();
-                if (!line) continue;
-                
-                const match = line.match(/^(\d+)\s+(.+)$/);
-                if (match) {
-                    const count = parseInt(match[1]);
-                    const cardName = match[2];
-                    
-                    try {
-                        const response = await fetch(`/api/card-data?exact=${encodeURIComponent(cardName)}`);
-                        if (!response.ok) throw new Error('Card not found');
-                        const cardData = await response.json();
-                        
-                        const rawImageUrl = cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal;
-                        const proxiedImageUrl = `/api/card-image?url=${encodeURIComponent(rawImageUrl)}`;
-                        
-                        // Spawn in your specific Deck Zone (Bottom Right)
-                        const deckZoneX = window.innerWidth - 160; 
-                        const deckZoneY = window.innerHeight - 430;
-
-                        for (let i = 0; i < count; i++) {
-                            db.ref(`lobbies/${currentLobbyId}/cards`).push({
-                                name: cardData.name,
-                                image: proxiedImageUrl,
-                                x: deckZoneX + Math.floor(Math.random() * 4), // Slight jitter for 3D effect
-                                y: deckZoneY + Math.floor(Math.random() * 4),
-                                owner: currentUser.uid,
-                                tapped: false,
-                                faceUp: false
-                            });
-                        }
-                    } catch (err) {
-                        console.error(`Error importing ${cardName}:`, err);
-                    }
-                }
-            }
-        }
-
-        // Wrapping auth state listener
-        function setupAuthListeners() {
-            auth.onAuthStateChanged((user) => {
-                if (user) {
-                    currentUser = user;
-                    document.getElementById('user-display-name').innerText = user.displayName || user.email;
-                    showScreen('dashboard-screen');
-                    listenToLobbies();
-                    listenToUserDecks(); // Load decks upon login
-                } else {
-                    currentUser = null;
-                    showScreen('landing-screen');
-                }
+        function untapAll() {
+            if (!currentLobbyId) return;
+            db.ref(`lobbies/${currentLobbyId}/cards`).once('value', snap => {
+                let updates = {};
+                snap.forEach(child => { if (child.val().owner === currentUser.uid && child.val().tapped) updates[`${child.key}/tapped`] = false; });
+                if (Object.keys(updates).length > 0) { db.ref(`lobbies/${currentLobbyId}/cards`).update(updates); notify("All permanents untapped.", "success"); }
             });
         }
 
-        function drawHand(amount) {
-            console.log(`Drawing ${amount} cards to hand.`);
-            // In the next step, this will extract from the imported deck array in Firebase
-            // and spawn them visually into the user's hand zone.
-        }
-
-        function takeMulligan() {
-            mulliganCount++;
-            const cardsToBottom = mulliganCount; // London Mulligan Rule
-            console.log(`Mulligan #${mulliganCount} taken. Drew 7. Must put ${cardsToBottom} card(s) on the bottom of the library.`);
+        // --- DECK IMPORTER & DRAW MECHANICS ---
+        async function importSavedDeck() {
+            if (!currentLobbyId) return;
+            const deckId = document.getElementById('playmat-deck-select').value;
+            if (!deckId) return notify("Select a deck first.", "error");
             
-            // Logic: Shuffle hand back into deck, draw 7, trigger UI prompt to select 'cardsToBottom' cards.
-            drawHand(7); 
-            alert(`London Mulligan: Select ${cardsToBottom} card(s) from your hand to put on the bottom of your library.`);
-        }
+            document.getElementById('spawn-modal').style.display = 'none';
+            notify("Spawning library... this takes about 5 seconds to load data.", "info");
 
-        // Basic MTGTop8 Deck Parser & Card Pusher
-        async function importDeck() {
-            const text = document.getElementById('decklist').value;
-            const lines = text.split('\n');
+            db.ref(`users/${currentUser.uid}/decks/${deckId}/lastPlayed`).set(Date.now());
+            db.ref(`users/${currentUser.uid}/decks/${deckId}/playtests`).transaction(c => (c || 0) + 1);
+
+            const lines = userDecks[deckId].list.split('\n');
+            const dX = window.innerWidth - 160, dY = window.innerHeight - 430;
+            const sbX = 20, sbY = window.innerHeight / 2 - 98;
+            
+            let isSideboard = false;
+            let successCount = 0;
             
             for (let line of lines) {
                 line = line.trim();
                 if (!line) continue;
+                if (line.toLowerCase() === 'sideboard') { isSideboard = true; continue; }
                 
                 const match = line.match(/^(\d+)\s+(.+)$/);
                 if (match) {
-                    const count = parseInt(match[1]);
-                    const cardName = match[2];
+                    let cardName = match[2];
+                    let imgUrl = "none"; // Fallback identifier
                     
                     try {
-                        // Call our backend proxy to circumvent network blocks safely
-                        const response = await fetch(`/api/card-data?exact=${encodeURIComponent(cardName)}`);
-                        if (!response.ok) throw new Error('Card not found');
-                        const cardData = await response.json();
-                        
-                        // Extract the image URI (preferring normal size)
-                        const rawImageUrl = cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal;
-                        
-                        // Convert it to use our image proxy route
-                        const proxiedImageUrl = `/api/card-image?url=${encodeURIComponent(rawImageUrl)}`;
-                        
-                        // Push to Firebase to spawn them stacked on top of each other
-                        for (let i = 0; i < count; i++) {
-                            db.ref('cards').push({
-                                name: cardData.name,
-                                image: proxiedImageUrl,
-                                x: 100, // Initial deck spawn coordinates
-                                y: 150,
-                                tapped: false,
-                                faceUp: false
-                            });
+                        const res = await fetch(`/api/card-data?exact=${encodeURIComponent(cardName)}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            cardName = data.name;
+                            imgUrl = `/api/card-image?url=${encodeURIComponent(data.image_uris ? data.image_uris.normal : data.card_faces[0].image_uris.normal)}`;
+                        } else {
+                            console.warn(`Card fetch failed for ${cardName}. Using proxy fallback.`);
                         }
-                    } catch (err) {
-                        console.error(`Error importing ${cardName}:`, err);
+                    } catch (e) { console.error(e); }
+                    
+                    // Push cards (Face Up if Sideboard)
+                    const count = parseInt(match[1]);
+                    for (let i = 0; i < count; i++) { 
+                        db.ref(`lobbies/${currentLobbyId}/cards`).push({ 
+                            name: cardName, 
+                            image: imgUrl, 
+                            x: isSideboard ? sbX + Math.random()*4 : dX + Math.random()*4, 
+                            y: isSideboard ? sbY + Math.random()*4 : dY + Math.random()*4, 
+                            owner: currentUser.uid, 
+                            tapped: false, 
+                            faceUp: isSideboard, 
+                            counters: 0 
+                        });
+                        successCount++;
                     }
                 }
             }
-            document.getElementById('decklist').value = ''; // Clear input
+            notify(`Deck fully loaded! Spawned ${successCount} cards.`, "success");
+        }
+
+        function drawOpeningHand() { drawCardsLogic(7); }
+        function drawCard() { drawCardsLogic(1); }
+
+        function drawCardsLogic(amount) {
+            if (!currentLobbyId) return;
+            db.ref(`lobbies/${currentLobbyId}/cards`).once('value', snap => {
+                let d = [], handCount = 0;
+                const dX = window.innerWidth - 160, dY = window.innerHeight - 430;
+                
+                snap.forEach(c => {
+                    const v = c.val();
+                    if (v.owner === currentUser.uid) {
+                        if (Math.abs(v.x - dX) < 60 && Math.abs(v.y - dY) < 60) d.push({id: c.key, card: v});
+                        else if (v.y > window.innerHeight - 220) handCount++;
+                    }
+                });
+                if (d.length < amount) return notify("Not enough cards in library to draw!", "error");
+                
+                let updates = {};
+                for (let i = 0; i < amount; i++) {
+                    updates[`lobbies/${currentLobbyId}/cards/${d[i].id}/x`] = 50 + ((handCount+i)*120);
+                    updates[`lobbies/${currentLobbyId}/cards/${d[i].id}/y`] = window.innerHeight - 190;
+                    updates[`lobbies/${currentLobbyId}/cards/${d[i].id}/faceUp`] = true;
+                }
+                db.ref().update(updates);
+            });
         }
     </script>
 </body>
