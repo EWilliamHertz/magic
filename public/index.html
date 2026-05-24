@@ -27,11 +27,15 @@
         
         #hand-zone { bottom: 0; left: 0; width: 100vw; height: 220px; border-top: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6); z-index: 0; position: absolute; pointer-events: none; }
         
+        /* Hand Card Styling - Hidden by default */
+        .hand-card { opacity: 0.5; height: 100px !important; overflow: hidden; transition: all 0.3s ease; }
+        .hand-card:hover { opacity: 1; height: 196px !important; transform: translateY(-150px) !important; z-index: 999 !important; }
+        
         /* Board Positioning */
         #my-deck-zone { bottom: 230px; right: 20px; width: 140px; height: 196px; }
         #my-grave-zone { bottom: 230px; right: 170px; width: 140px; height: 196px; }
         #my-exile-zone { bottom: 440px; right: 170px; width: 140px; height: 196px; }
-        #my-sideboard-zone { top: 50%; left: 20px; transform: translateY(-50%); width: 140px; height: 196px; border-color: rgba(241, 196, 15, 0.4); color: rgba(241, 196, 15, 0.6); }
+        #my-sideboard-zone { top: 50%; left: 20px; transform: translateY(-50%); width: 140px; height: 196px; border-color: rgba(241, 196, 15, 0.4); color: rgba(241, 196, 15, 0.6); display: none; }
         
         /* UI Game Buttons */
         #btn-untap { position: absolute; top: 20px; right: 20px; z-index: 100; font-size: 28px; font-weight: bold; background: rgba(46, 204, 113, 0.9); border: 2px solid #27ae60; color: white; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: transform 0.1s; display: flex; justify-content: center; align-items: center;}
@@ -54,6 +58,23 @@
         #context-menu { display: none; position: absolute; background: #2c3e50; border: 1px solid #34495e; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 6px; z-index: 2000; min-width: 160px; overflow: hidden; }
         .menu-item { padding: 12px 15px; cursor: pointer; color: white; font-size: 14px; border-bottom: 1px solid #1a252f; transition: background 0.1s; }
         .menu-item:hover { background: #3498db; }
+        
+        /* Deck Builder Tabs */
+        .deck-section { display: none; }
+        .deck-section.active { display: block; }
+        .deck-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .deck-tabs button { flex: 1; padding: 10px; background: #555; border: none; color: white; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+        .deck-tabs button.active { background: #3498db; }
+        
+        /* Post-Game Modal */
+        #postgame-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 5000; justify-content: center; align-items: center; }
+        #postgame-modal.active { display: flex; }
+        .postgame-content { background: rgba(0, 0, 0, 0.95); padding: 40px; border-radius: 12px; border: 2px solid #e74c3c; max-width: 600px; text-align: center; }
+        .postgame-content h2 { font-size: 2.5em; color: #e74c3c; margin-bottom: 20px; }
+        .postgame-content p { font-size: 1.2em; margin-bottom: 20px; }
+        .sideboard-display { background: #222; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left; max-height: 300px; overflow-y: auto; }
+        .sideboard-display h3 { color: #f1c40f; margin-top: 0; }
+        .postgame-content button { margin: 10px 5px; padding: 12px 20px; font-size: 1em; }
     </style>
     
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
@@ -106,10 +127,26 @@
     </div>
     
     <div id="deck-builder-screen" class="screen">
-        <div class="center-box">
+        <div class="center-box" style="max-width: 700px;">
             <h2 id="deck-builder-title">Create New Deck</h2>
             <input type="text" id="new-deck-name" placeholder="Deck Name (e.g., Burn)">
-            <textarea id="new-deck-list" placeholder="4 Lightning Bolt&#10;4 Goblin Guide&#10;Sideboard&#10;2 Blood Moon" style="width: 90%; height: 150px; background: #222; color: white; margin-top:10px;"></textarea>
+            
+            <!-- Deck Tabs -->
+            <div class="deck-tabs">
+                <button class="active" onclick="switchDeckSection('mainboard')">MAINBOARD</button>
+                <button onclick="switchDeckSection('sideboard')">SIDEBOARD</button>
+            </div>
+            
+            <!-- Mainboard Section -->
+            <div id="mainboard-section" class="deck-section active">
+                <textarea id="mainboard-list" placeholder="4 Lightning Bolt&#10;4 Goblin Guide&#10;..." style="width: 90%; height: 200px; background: #222; color: white; margin-top:10px;"></textarea>
+            </div>
+            
+            <!-- Sideboard Section -->
+            <div id="sideboard-section" class="deck-section">
+                <textarea id="sideboard-list" placeholder="2 Blood Moon&#10;1 Rest in Peace&#10;..." style="width: 90%; height: 200px; background: #222; color: white; margin-top:10px;"></textarea>
+            </div>
+            
             <div>
                 <button onclick="saveDeck()">Save Deck</button>
                 <button onclick="showScreen('dashboard-screen')" style="background: #555;">Cancel</button>
@@ -135,6 +172,22 @@
         <div class="menu-item" onclick="contextAction('deck')">Send to Library (Top)</div>
         <div class="menu-item" onclick="contextAction('grave')">Send to Graveyard</div>
         <div class="menu-item" onclick="contextAction('exile')">Send to Exile</div>
+    </div>
+
+    <!-- Post-Game Modal -->
+    <div id="postgame-modal">
+        <div class="postgame-content">
+            <h2 id="postgame-title">Game Over!</h2>
+            <p id="postgame-message">You have reached 0 life or conceded.</p>
+            <div class="sideboard-display" id="postgame-sideboard">
+                <h3>Sideboard for Next Game</h3>
+                <div id="sideboard-list-display"></div>
+            </div>
+            <div>
+                <button onclick="resetGame()" style="background: #2ecc71;">Play Again</button>
+                <button onclick="returnToDashboard()" style="background: #3498db;">Return to Dashboard</button>
+            </div>
+        </div>
     </div>
 
     <div id="playmat" class="screen" style="position: relative; overflow: hidden; padding: 0;">
@@ -208,12 +261,21 @@
         let currentUser = null;
         let currentLobbyId = null;
         let gameStarted = false;
+        let currentSideboard = [];
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active-screen'));
             document.getElementById(screenId).classList.add('active-screen');
             if (screenId === 'playmat') document.body.style.background = "url('playmat.png') center/cover";
             else document.body.style.background = "#2c3e50";
+        }
+
+        // --- DECK BUILDER TABS ---
+        function switchDeckSection(section) {
+            document.querySelectorAll('.deck-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.deck-tabs button').forEach(el => el.classList.remove('active'));
+            document.getElementById(`${section}-section`).classList.add('active');
+            event.target.classList.add('active');
         }
 
         // --- AUTHENTICATION ---
@@ -244,11 +306,13 @@
             editingDeckId = deckId;
             if (deckId && userDecks[deckId]) {
                 document.getElementById('new-deck-name').value = userDecks[deckId].name;
-                document.getElementById('new-deck-list').value = userDecks[deckId].list;
+                document.getElementById('mainboard-list').value = userDecks[deckId].mainboard || userDecks[deckId].list;
+                document.getElementById('sideboard-list').value = userDecks[deckId].sideboard || '';
                 document.getElementById('deck-builder-title').innerText = "Edit Deck";
             } else {
                 document.getElementById('new-deck-name').value = '';
-                document.getElementById('new-deck-list').value = '';
+                document.getElementById('mainboard-list').value = '';
+                document.getElementById('sideboard-list').value = '';
                 document.getElementById('deck-builder-title').innerText = "Create New Deck";
             }
             showScreen('deck-builder-screen');
@@ -257,10 +321,11 @@
         function saveDeck() {
             if (!currentUser) return notify("You must be logged in.", "error");
             const name = document.getElementById('new-deck-name').value.trim();
-            const list = document.getElementById('new-deck-list').value.trim();
-            if (!name || !list) return notify("Name and decklist required.", "error");
+            const mainboard = document.getElementById('mainboard-list').value.trim();
+            const sideboard = document.getElementById('sideboard-list').value.trim();
+            if (!name || !mainboard) return notify("Name and mainboard required.", "error");
             
-            const deckData = { name, list, lastEdited: Date.now() };
+            const deckData = { name, mainboard, sideboard, lastEdited: Date.now() };
             const dbRef = editingDeckId 
                 ? db.ref(`users/${currentUser.uid}/decks/${editingDeckId}`).update(deckData)
                 : db.ref(`users/${currentUser.uid}/decks`).push({ ...deckData, playtests: 0, lastPlayed: "Never" });
@@ -388,14 +453,19 @@
 
                 if (lobby.status === 'waiting') {
                     const allReady = (playersArray.length === lobby.maxPlayers) && playersArray.every(([, p]) => p.ready);
-                    // ANY player can safely push state to playing if all are ready. This guarantees it fires.
                     if (allReady) db.ref(`lobbies/${currentLobbyId}/status`).set('playing');
                 }
             });
         }
 
         function updateLife(amount) {
-            db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/life`).transaction(currentLife => (currentLife || 20) + amount);
+            db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/life`).transaction(currentLife => {
+                const newLife = (currentLife || 20) + amount;
+                if (newLife <= 0) {
+                    showPostGameModal("You have reached 0 life and lost!");
+                }
+                return newLife;
+            });
         }
 
         // --- GAMEPLAY ENGINE ---
@@ -429,6 +499,7 @@
                     
                     const cardEl = document.createElement('div');
                     cardEl.className = 'card';
+                    if (isInOwnersHand && isMine) cardEl.classList.add('hand-card');
                     cardEl.style.left = `${renderX}px`;
                     cardEl.style.top = `${renderY}px`;
                     
@@ -516,6 +587,62 @@
             });
         }
 
+        // --- SHUFFLE MECHANICS ---
+        function shuffleDeck() {
+            if (!currentLobbyId) return;
+            db.ref(`lobbies/${currentLobbyId}/cards`).once('value', snap => {
+                const deckZoneX = window.innerWidth - 160;
+                const deckZoneY = window.innerHeight - 430;
+                let updates = {};
+                let cardCount = 0;
+                
+                snap.forEach(child => {
+                    const card = child.val();
+                    if (card.owner === currentUser.uid) {
+                        const deckX = Math.abs(card.x - deckZoneX) < 60;
+                        const deckY = Math.abs(card.y - deckZoneY) < 60;
+                        if (deckX && deckY) {
+                            updates[`${child.key}/x`] = deckZoneX + (Math.random() * 8 - 4);
+                            updates[`${child.key}/y`] = deckZoneY + (Math.random() * 8 - 4);
+                            cardCount++;
+                        }
+                    }
+                });
+                
+                if (cardCount > 0) {
+                    db.ref(`lobbies/${currentLobbyId}/cards`).update(updates);
+                    notify(`Shuffled ${cardCount} cards.`, "success");
+                }
+            });
+        }
+
+        // --- POST-GAME MODAL ---
+        function showPostGameModal(message) {
+            currentSideboard = document.getElementById('sideboard-list').value.split('\n').filter(line => line.trim());
+            document.getElementById('postgame-message').innerText = message;
+            
+            let sideboardHtml = '';
+            currentSideboard.forEach(card => {
+                if (card.trim()) sideboardHtml += `<div style="padding: 5px; color: #fff;">${card}</div>`;
+            });
+            document.getElementById('sideboard-list-display').innerHTML = sideboardHtml || '<div style="color: #aaa;">No sideboard cards</div>';
+            
+            document.getElementById('postgame-modal').classList.add('active');
+        }
+
+        function resetGame() {
+            document.getElementById('postgame-modal').classList.remove('active');
+            document.getElementById('spawn-modal').style.display = 'block';
+        }
+
+        function returnToDashboard() {
+            document.getElementById('postgame-modal').classList.remove('active');
+            gameStarted = false;
+            currentLobbyId = null;
+            db.ref(`lobbies/${currentLobbyId}`).off();
+            showScreen('dashboard-screen');
+        }
+
         // --- DECK IMPORTER & DRAW MECHANICS ---
         async function importSavedDeck() {
             if (!currentLobbyId) return;
@@ -523,27 +650,28 @@
             if (!deckId) return notify("Select a deck first.", "error");
             
             document.getElementById('spawn-modal').style.display = 'none';
-            notify("Spawning library... this takes about 5 seconds to load data.", "info");
+            notify("Spawning library... shuffling...", "info");
 
             db.ref(`users/${currentUser.uid}/decks/${deckId}/lastPlayed`).set(Date.now());
             db.ref(`users/${currentUser.uid}/decks/${deckId}/playtests`).transaction(c => (c || 0) + 1);
 
-            const lines = userDecks[deckId].list.split('\n');
+            const mainboardLines = userDecks[deckId].mainboard.split('\n');
+            const sideboardLines = (userDecks[deckId].sideboard || '').split('\n');
+            
             const dX = window.innerWidth - 160, dY = window.innerHeight - 430;
             const sbX = 20, sbY = window.innerHeight / 2 - 98;
             
-            let isSideboard = false;
             let successCount = 0;
             
-            for (let line of lines) {
+            // Process mainboard
+            for (let line of mainboardLines) {
                 line = line.trim();
                 if (!line) continue;
-                if (line.toLowerCase() === 'sideboard') { isSideboard = true; continue; }
                 
                 const match = line.match(/^(\d+)\s+(.+)$/);
                 if (match) {
                     let cardName = match[2];
-                    let imgUrl = "none"; // Fallback identifier
+                    let imgUrl = "none";
                     
                     try {
                         const res = await fetch(`/api/card-data?exact=${encodeURIComponent(cardName)}`);
@@ -551,29 +679,29 @@
                             const data = await res.json();
                             cardName = data.name;
                             imgUrl = `/api/card-image?url=${encodeURIComponent(data.image_uris ? data.image_uris.normal : data.card_faces[0].image_uris.normal)}`;
-                        } else {
-                            console.warn(`Card fetch failed for ${cardName}. Using proxy fallback.`);
                         }
                     } catch (e) { console.error(e); }
                     
-                    // Push cards (Face Up if Sideboard)
                     const count = parseInt(match[1]);
                     for (let i = 0; i < count; i++) { 
                         db.ref(`lobbies/${currentLobbyId}/cards`).push({ 
                             name: cardName, 
                             image: imgUrl, 
-                            x: isSideboard ? sbX + Math.random()*4 : dX + Math.random()*4, 
-                            y: isSideboard ? sbY + Math.random()*4 : dY + Math.random()*4, 
+                            x: dX + (Math.random() * 8 - 4), 
+                            y: dY + (Math.random() * 8 - 4), 
                             owner: currentUser.uid, 
                             tapped: false, 
-                            faceUp: isSideboard, 
+                            faceUp: false, 
                             counters: 0 
                         });
                         successCount++;
                     }
                 }
             }
-            notify(`Deck fully loaded! Spawned ${successCount} cards.`, "success");
+            
+            // Shuffle deck after spawning
+            setTimeout(() => shuffleDeck(), 500);
+            notify(`Deck loaded with ${successCount} cards!`, "success");
         }
 
         function drawOpeningHand() { drawCardsLogic(7); }

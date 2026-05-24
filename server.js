@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+// Cache for MTGJSON data
+let mtgjsonCache = {};
+let cacheLastUpdated = 0;
+const CACHE_DURATION = 3600000; // 1 hour
+
 app.get('/api/config', (req, res) => {
     res.json({
         apiKey: process.env.FIREBASE_API_KEY,
@@ -20,6 +25,47 @@ app.get('/api/config', (req, res) => {
     });
 });
 
+// MTGJSON Data endpoint - Primary source for cards
+app.route('/api/mtgjson-card').get((req, res) => {
+    const cardName = req.query.exact;
+    if (!cardName) return res.status(400).send('Missing card name');
+    
+    // Try MTGJSON first
+    const mtgjsonUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&include_multilingual=true`;
+    
+    https.get(mtgjsonUrl, { headers: { 'User-Agent': 'MTGSandbox/1.0' } }, (proxyRes) => {
+        let data = '';
+        proxyRes.on('data', chunk => data += chunk);
+        proxyRes.on('end', () => {
+            if (proxyRes.statusCode === 200) {
+                try {
+                    const cardData = JSON.parse(data);
+                    // Extract relevant card data
+                    const response = {
+                        name: cardData.name,
+                        image_uris: cardData.image_uris,
+                        card_faces: cardData.card_faces,
+                        mana_cost: cardData.mana_cost,
+                        type_line: cardData.type_line,
+                        oracle_text: cardData.oracle_text,
+                        power: cardData.power,
+                        toughness: cardData.toughness,
+                        colors: cardData.colors,
+                        set: cardData.set,
+                        rarity: cardData.rarity
+                    };
+                    res.json(response);
+                } catch (e) {
+                    res.status(500).send('Error parsing card data');
+                }
+            } else {
+                res.status(proxyRes.statusCode).send('Card not found');
+            }
+        });
+    }).on('error', (err) => res.status(500).send(err.message));
+});
+
+// Legacy endpoint - kept for backward compatibility
 app.route('/api/card-data').get((req, res) => {
     const cardName = req.query.exact;
     if (!cardName) return res.status(400).send('Missing card name');
