@@ -18,13 +18,12 @@ document.addEventListener('click', () => { document.getElementById('context-menu
 document.addEventListener('mouseup', e => {
     if(draggedCard) {
         let nX = e.clientX - offsetX, nY = e.clientY - offsetY, z = 'battlefield';
-        if (nY > window.innerHeight - 220) { nX -= handScrollOffset; z = 'hand'; }
-        else {
-            const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
-            const ex = document.getElementById('my-exile-zone').getBoundingClientRect();
-            if (Math.abs(nX - gr.left) < 70 && Math.abs(nY - gr.top) < 100) z = 'graveyard';
-            else if (Math.abs(nX - ex.left) < 70 && Math.abs(nY - ex.top) < 100) z = 'exile';
-        }
+        // Cards can only return to hand via card effects (context menu), NOT by dragging
+        const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
+        const ex = document.getElementById('my-exile-zone').getBoundingClientRect();
+        if (Math.abs(nX - gr.left) < 70 && Math.abs(nY - gr.top) < 100) z = 'graveyard';
+        else if (Math.abs(nX - ex.left) < 70 && Math.abs(nY - ex.top) < 100) z = 'exile';
+        // All other drops go to battlefield (no accidental returns to hand)
         db.ref(`lobbies/${currentLobbyId}/cards/${draggedCard}`).update({ x: nX, y: nY, zone: z });
         draggedCard = null;
     }
@@ -91,11 +90,12 @@ function renderTable() {
                 e.preventDefault();
             };
 
-            // Double-click: hand → battlefield (smart snap), battlefield → tap/untap
+            // Double-click: ONLY hand → battlefield (smart snap), or ONLY battlefield → tap/untap
             el.ondblclick = e => {
                 e.stopPropagation();
                 if (isMine && inHand) {
-                    const bfH = window.innerHeight - 220; // battlefield height (above hand zone)
+                    // Play card from hand to battlefield
+                    const bfH = window.innerHeight - 100; // battlefield height (above 100px hand zone)
                     const isTopSnap = /Creature|Planeswalker/.test(data.typeLine || '');
                     const snapY = isTopSnap
                         ? bfH * 0.15 + Math.random() * (bfH * 0.2)       // top 15–35%
@@ -105,11 +105,14 @@ function renderTable() {
                         zone: 'battlefield',
                         x: snapX,
                         y: snapY,
-                        faceUp: true
+                        faceUp: true,
+                        tapped: false
                     });
                 } else if (isMine && data.zone === 'battlefield') {
+                    // Tap/untap card on battlefield (only if NOT in hand)
                     db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ tapped: !localCards[id].tapped });
                 }
+                // Cards in other zones (graveyard, exile, deck) won't double-click to move
             };
 
             el.oncontextmenu = e => {

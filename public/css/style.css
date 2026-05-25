@@ -23,12 +23,12 @@ body { margin: 0; background-color: #1a252f; color: white; font-family: 'Segoe U
 /* Visual Zones */
 .zone { position: absolute; box-sizing: border-box; border-radius: 8px; color: rgba(255,255,255,0.4); display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2em; text-transform: uppercase; z-index: 1; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
 
-/* Hand zone — semi-transparent strip at the bottom */
-#hand-zone { bottom: 0; left: 0; width: 100vw; height: 220px; border-top: 2px solid rgba(255,255,255,0.07); background: rgba(0,0,0,0.65); z-index: 0; position: absolute; pointer-events: none; }
+/* Hand zone — semi-transparent strip at the bottom, low profile so only top halves are visible */
+#hand-zone { bottom: 0; left: 0; width: 100vw; height: 100px; border-top: 2px solid rgba(255,255,255,0.07); background: rgba(0,0,0,0.65); z-index: 0; position: absolute; pointer-events: none; }
 
-#my-deck-zone  { bottom: 230px; right: 20px;  width: 140px; height: 196px; border: 2px solid #2c3e50; background: rgba(26,37,47,0.8); }
-#my-exile-zone { bottom: 440px; right: 20px;  width: 140px; height: 196px; border: 2px dashed #2c3e50; background: rgba(17,24,30,0.8); }
-#my-grave-zone { bottom: 230px; right: 175px; width: 140px; height: 196px; border: 2px dashed #34495e; background: rgba(26,37,47,0.8); }
+#my-deck-zone  { bottom: 110px; right: 20px;  width: 140px; height: 196px; border: 2px solid #2c3e50; background: rgba(26,37,47,0.8); }
+#my-exile-zone { bottom: 320px; right: 20px;  width: 140px; height: 196px; border: 2px dashed #2c3e50; background: rgba(17,24,30,0.8); }
+#my-grave-zone { bottom: 110px; right: 175px; width: 140px; height: 196px; border: 2px dashed #34495e; background: rgba(26,37,47,0.8); }
 
 .deck-counter { background: #3498db; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; margin-top: 10px; }
 
@@ -36,11 +36,11 @@ body { margin: 0; background-color: #1a252f; color: white; font-family: 'Segoe U
 .card { width: 140px; height: 196px; box-sizing: border-box; border-radius: 6px; position: absolute; cursor: grab; box-shadow: 2px 4px 14px rgba(0,0,0,0.9); background-color: #ecf0f1; border: 2px solid #2c3e50; user-select: none; overflow: hidden; transition: box-shadow 0.15s; }
 .card:active { cursor: grabbing; }
 .hand-card { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-origin: bottom center; }
-.hand-card:hover { transform: translateY(-70px) scale(1.15) !important; z-index: 9000 !important; }
+.hand-card:hover { transform: translateY(-140px) scale(1.15) !important; z-index: 9000 !important; }
 
 /* Life trackers */
 .life-tracker { position: absolute; background: rgba(0,0,0,0.9); border: 2px solid #3498db; border-radius: 12px; width: 80px; height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; font-size: 26px; font-weight: bold; }
-#my-life  { bottom: 240px; left: 20px; }
+#my-life  { bottom: 120px; left: 20px; }
 #opp-life { top: 20px;    left: 20px; border-color: #e74c3c; }
 
 /* Buttons & panels */
@@ -56,7 +56,7 @@ body { margin: 0; background-color: #1a252f; color: white; font-family: 'Segoe U
 .menu-item:hover { background: #3498db; color: white; }
 
 /* Game start / mulligan controls */
-#game-start-controls { display: none; position: absolute; bottom: 240px; left: 50%; transform: translateX(-50%); z-index: 8000; flex-direction: column; align-items: center; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 12px; border: 2px solid #3498db; gap: 8px; }
+#game-start-controls { display: none; position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 8000; flex-direction: column; align-items: center; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 12px; border: 2px solid #3498db; gap: 8px; }
 #mulligan-controls { display: none; gap: 10px; margin-bottom: 10px; }
 #mulligan-controls button { padding: 10px 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
 
@@ -64,7 +64,7 @@ body { margin: 0; background-color: #1a252f; color: white; font-family: 'Segoe U
 .counter-badge { position: absolute; top: -10px; right: -10px; background: #e74c3c; border: 2px solid #000; color: white; font-weight: bold; border-radius: 50%; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; font-size: 12px; z-index: 5; pointer-events: none; }
 
 /* Hand scroll arrows */
-.hand-scroll-area { position: absolute; bottom: 0; width: 80px; height: 220px; z-index: 6000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.25); font-size: 40px; cursor: pointer; transition: color 0.2s; }
+.hand-scroll-area { position: absolute; bottom: 0; width: 80px; height: 100px; z-index: 6000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.25); font-size: 40px; cursor: pointer; transition: color 0.2s; }
 .hand-scroll-area:hover { color: rgba(255,255,255,0.7); }
 .hand-scroll-area.left  { left: 0; }
 .hand-scroll-area.right { right: 0; }
