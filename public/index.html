@@ -208,12 +208,12 @@
         <div id="mana-pool" class="ui-panel left-center">
             <div class="mana-btn w" onclick="addMana('W')">W: <span id="mana-W">0</span></div><div class="mana-btn u" onclick="addMana('U')">U: <span id="mana-U">0</span></div><div class="mana-btn b" onclick="addMana('B')">B: <span id="mana-B">0</span></div><div class="mana-btn r" onclick="addMana('R')">R: <span id="mana-R">0</span></div><div class="mana-btn g" onclick="addMana('G')">G: <span id="mana-G">0</span></div><div class="mana-btn c" onclick="addMana('C')">C: <span id="mana-C">0</span></div>
         </div>
-        <div id="game-log-container" class="ui-panel" style="top: 20%; right: 10px; width: 250px; display: flex; flex-direction: column;">
-            <div class="drag-header" onmousedown="startDragLog(event)">
-                <span style="cursor: pointer; flex: 1; text-align: left;" onclick="toggleLog()">📜 Game Log</span> 
+<div id="game-log-container" class="ui-panel" style="position: absolute; top: 20%; right: 10px; width: 250px; display: flex; flex-direction: column; z-index: 9000; background: rgba(15,20,25,0.95); border-radius: 8px;">
+            <div id="log-drag-handle" style="background: #2c3e50; padding: 8px 10px; cursor: move; border-bottom: 1px solid #34495e; font-weight: bold; color: #3498db; display: flex; justify-content: space-between; border-radius: 8px 8px 0 0;">
+                <span style="pointer-events: none;">📜 Game Log</span> 
                 <span id="log-toggle-icon" onclick="toggleLog()" style="cursor: pointer; padding: 0 5px;">▼</span>
             </div>
-            <div id="game-log" style="height: 250px; display: flex;"></div>
+            <div id="game-log" style="height: 250px; display: flex; overflow-y: auto; padding: 10px; flex-direction: column; gap: 4px; font-size: 0.85em; text-align: left;"></div>
         </div>
 
         <button onclick="untapAll()" id="btn-untap" title="Untap All">⟲</button>

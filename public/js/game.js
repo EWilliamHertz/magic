@@ -636,36 +636,41 @@ window.submitSideboardAndRematch = function() {
         logAction("finished sideboarding and is ready.");
     });
 };
-// --- UI UX: Draggable Game Log ---
-let logDragging = false, logOffX, logOffY;
-window.startDragLog = function(e) {
-    if (e.target.tagName === 'SPAN') return; 
-    logDragging = true;
-    const logEl = document.getElementById('game-log-container');
-    const rect = logEl.getBoundingClientRect();
-    logOffX = e.clientX - rect.left;
-    logOffY = e.clientY - rect.top;
-};
-document.addEventListener('mousemove', e => {
-    if (logDragging) {
-        const logEl = document.getElementById('game-log-container');
-        logEl.style.left = (e.clientX - logOffX) + 'px';
-        logEl.style.top = (e.clientY - logOffY) + 'px';
-        logEl.style.right = 'auto'; 
-    }
+// --- Draggable & Minimizable Game Log ---
+let logDrag = false, logX = 0, logY = 0;
+const logContainer = document.getElementById('game-log-container');
+const logHandle = document.getElementById('log-drag-handle');
+
+if (logHandle) {
+    logHandle.addEventListener('mousedown', (e) => {
+        if (e.target.id === 'log-toggle-icon') return; // Don't drag if clicking minimize
+        logDrag = true;
+        const rect = logContainer.getBoundingClientRect();
+        logX = e.clientX - rect.left;
+        logY = e.clientY - rect.top;
+        logContainer.style.right = 'auto'; // Break free from right-alignment
+    });
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (!logDrag) return;
+    logContainer.style.left = (e.clientX - logX) + 'px';
+    logContainer.style.top = (e.clientY - logY) + 'px';
 });
-document.addEventListener('mouseup', () => logDragging = false);
+
+document.addEventListener('mouseup', () => logDrag = false);
 
 window.toggleLog = function() {
-    const logContent = document.getElementById('game-log');
+    const content = document.getElementById('game-log');
     const icon = document.getElementById('log-toggle-icon');
-    if (logContent.style.display === 'none') {
-        logContent.style.display = 'flex'; icon.innerText = '▼';
+    if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        icon.innerText = '▼';
     } else {
-        logContent.style.display = 'none'; icon.innerText = '▲';
+        content.style.display = 'none';
+        icon.innerText = '▲';
     }
 };
-
 // --- ROADMAP 7: Graveyard / Exile Viewer ---
 window.openZoneViewer = function(zoneName, ownerId) {
     const modal = document.getElementById('zone-viewer-modal');
