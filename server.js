@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const https = require('https');
+const http = require('http');
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,74 +9,58 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Cache for MTGJSON data
-let mtgjsonCache = {};
-let cacheLastUpdated = 0;
-const CACHE_DURATION = 3600000; // 1 hour
-
 app.get('/api/config', (req, res) => {
     res.json({
         apiKey: process.env.FIREBASE_API_KEY,
         authDomain: process.env.FIREBASE_AUTH_DOMAIN,
         databaseURL: process.env.FIREBASE_DATABASE_URL,
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.FIREBASE_APP_ID
+        projectId: process.env.FIREBASE_PROJECT_ID
     });
 });
 
-// MTGJSON/Scryfall unified card endpoint
-app.route('/api/card-data').get((req, res) => {
-    const cardName = req.query.exact;
-    if (!cardName) return res.status(400).send('Missing card name');
+// NEW MTG API PROXY (Bypasses Scryfall Blocks)
+app.get('/api/card-data', (req, res) => {
+    const name = req.query.fuzzy;
+    if (!name) return res.status(400).send('Missing name');
     
-    // Use Scryfall API (official source that aggregates MTGJSON data)
-    const scryfallUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+    const mtgApiUrl = `https://api.magicthegathering.io/v1/cards?name=${encodeURIComponent(name)}`;
     
-    https.get(scryfallUrl, { headers: { 'User-Agent': 'MTGSandbox/1.0' } }, (proxyRes) => {
+    https.get(mtgApiUrl, { headers: { 'User-Agent': 'HatakePlay/1.0' } }, (proxyRes) => {
         let data = '';
         proxyRes.on('data', chunk => data += chunk);
         proxyRes.on('end', () => {
-            if (proxyRes.statusCode === 200) {
-                try {
-                    const cardData = JSON.parse(data);
-                    // Return comprehensive card data from MTGJSON/Scryfall
-                    const response = {
-                        name: cardData.name,
-                        image_uris: cardData.image_uris,
-                        card_faces: cardData.card_faces,
-                        mana_cost: cardData.mana_cost,
-                        type_line: cardData.type_line,
-                        oracle_text: cardData.oracle_text,
-                        power: cardData.power,
-                        toughness: cardData.toughness,
-                        colors: cardData.colors,
-                        set: cardData.set,
-                        rarity: cardData.rarity,
-                        keywords: cardData.keywords,
-                        layout: cardData.layout
-                    };
-                    res.json(response);
-                } catch (e) {
-                    res.status(500).json({ error: 'Error parsing card data' });
+            try {
+                const json = JSON.parse(data);
+                if (json.cards && json.cards.length > 0) {
+                    // Grab exact match if available, otherwise first result
+                    const card = json.cards.find(c => c.name.toLowerCase() === name.toLowerCase()) || json.cards[0];
+                    res.json({
+                        name: card.name,
+                        type_line: card.type,
+                        oracle_text: card.text,
+                        power: card.power,
+                        toughness: card.toughness,
+                        image_url: card.imageUrl // From Gatherer
+                    });
+                } else {
+                    res.status(404).send('Not found');
                 }
-            } else {
-                res.status(proxyRes.statusCode).json({ error: 'Card not found' });
-            }
+            } catch (e) { res.status(500).send('Parse error'); }
         });
-    }).on('error', (err) => res.status(500).json({ error: err.message }));
+    }).on('error', e => res.status(500).send(e.message));
 });
 
-app.route('/api/card-image').get((req, res) => {
+// Universal Image Proxy (Handles HTTP and HTTPS seamlessly to prevent mixed-content errors)
+app.get('/api/card-image', (req, res) => {
     const targetUrl = req.query.url;
-    if (!targetUrl || !targetUrl.includes('scryfall.io')) return res.status(400).send('Invalid URL');
-
-    https.get(targetUrl, (proxyRes) => {
-        if (proxyRes.statusCode !== 200) return res.status(proxyRes.statusCode).send('Error');
-        res.setHeader('Content-Type', proxyRes.headers['content-type']);
+    if (!targetUrl || targetUrl === 'none') return res.status(400).send('No URL');
+    
+    const client = targetUrl.startsWith('https') ? https : http;
+    client.get(targetUrl, (proxyRes) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
         proxyRes.pipe(res);
-    }).on('error', (err) => res.status(500).send('Proxy error'));
+    }).on('error', () => res.status(500).send('Image Proxy Error'));
 });
 
-app.listen(PORT, () => console.log(`MTG Sandbox server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`HatakePlay engine running on port ${PORT}`));
