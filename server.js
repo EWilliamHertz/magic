@@ -18,45 +18,59 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// NEW MTG API PROXY (Bypasses Scryfall Blocks)
+// MTG API via Scryfall (reliable, HTTPS, accurate card data)
 app.get('/api/card-data', (req, res) => {
     const name = req.query.fuzzy;
     if (!name) return res.status(400).send('Missing name');
-    
-    const mtgApiUrl = `https://api.magicthegathering.io/v1/cards?name=${encodeURIComponent(name)}`;
-    
-    https.get(mtgApiUrl, { headers: { 'User-Agent': 'HatakePlay/1.0' } }, (proxyRes) => {
+
+    const options = {
+        hostname: 'api.scryfall.com',
+        path: `/cards/named?fuzzy=${encodeURIComponent(name)}`,
+        headers: {
+            'User-Agent': 'HatakePlay/1.0 (contact@hatake.se)',
+            'Accept': 'application/json'
+        }
+    };
+
+    https.get(options, (proxyRes) => {
         let data = '';
         proxyRes.on('data', chunk => data += chunk);
         proxyRes.on('end', () => {
             try {
-                const json = JSON.parse(data);
-                if (json.cards && json.cards.length > 0) {
-                    // Grab exact match if available, otherwise first result
-                    const card = json.cards.find(c => c.name.toLowerCase() === name.toLowerCase()) || json.cards[0];
-                    res.json({
-                        name: card.name,
-                        type_line: card.type,
-                        oracle_text: card.text,
-                        power: card.power,
-                        toughness: card.toughness,
-                        image_url: card.imageUrl // From Gatherer
-                    });
-                } else {
-                    res.status(404).send('Not found');
-                }
-            } catch (e) { res.status(500).send('Parse error'); }
+                const card = JSON.parse(data);
+                if (card.object === 'error') return res.status(404).json({ name });
+
+                // Handle double-faced cards
+                const imageUrl = card.image_uris?.normal
+                    || card.card_faces?.[0]?.image_uris?.normal
+                    || null;
+
+                const oracleText = card.oracle_text
+                    || card.card_faces?.map(f => f.oracle_text).join('\n---\n')
+                    || '';
+
+                res.json({
+                    name: card.name,
+                    type_line: card.type_line || '',
+                    oracle_text: oracleText,
+                    power: card.power || null,
+                    toughness: card.toughness || null,
+                    image_url: imageUrl
+                });
+            } catch (e) {
+                res.status(500).send('Parse error');
+            }
         });
     }).on('error', e => res.status(500).send(e.message));
 });
 
-// Universal Image Proxy (Handles HTTP and HTTPS seamlessly to prevent mixed-content errors)
+// Universal Image Proxy — handles HTTP and HTTPS to prevent mixed-content errors
 app.get('/api/card-image', (req, res) => {
     const targetUrl = req.query.url;
     if (!targetUrl || targetUrl === 'none') return res.status(400).send('No URL');
-    
+
     const client = targetUrl.startsWith('https') ? https : http;
-    client.get(targetUrl, (proxyRes) => {
+    client.get(targetUrl, { headers: { 'User-Agent': 'HatakePlay/1.0' } }, (proxyRes) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
         proxyRes.pipe(res);
