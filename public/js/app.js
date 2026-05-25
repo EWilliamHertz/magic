@@ -1,9 +1,21 @@
 function notify(msg, type = "success") {
     const t = document.createElement('div'); t.innerText = msg;
-    t.style.cssText = `position:fixed; bottom:20px; right:20px; background:${type === 'error' ? '#e74c3c' : '#2ecc71'}; color:white; padding:12px 20px; border-radius:6px; z-index:15000; font-weight:bold; transition:0.3s; opacity:0; transform:translateY(20px);`;
+    t.style.cssText = `position:fixed; bottom:20px; right:20px; background:${type === 'error' ? '#e74c3c' : type === 'info' ? '#3498db' : '#2ecc71'}; color:white; padding:12px 20px; border-radius:6px; z-index:15000; font-weight:bold; transition:0.3s; opacity:0; transform:translateY(20px);`;
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; }, 10);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    if(tab === 'login') {
+        document.querySelectorAll('.auth-tab')[0].classList.add('active');
+        document.getElementById('login-form').classList.add('active');
+    } else {
+        document.querySelectorAll('.auth-tab')[1].classList.add('active');
+        document.getElementById('register-form').classList.add('active');
+    }
 }
 
 let db, auth, currentUser, currentLobbyId, userDecks = {}, editingDeckId = null;
@@ -21,8 +33,20 @@ async function initApp() {
 initApp();
 
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen')); document.getElementById(id).classList.add('active-screen'); }
-function loginEmail() { auth.signInWithEmailAndPassword(document.getElementById('auth-email').value, document.getElementById('auth-password').value).catch(e => notify(e.message, "error")); }
-function registerEmail() { auth.createUserWithEmailAndPassword(document.getElementById('auth-email').value, document.getElementById('auth-password').value).catch(e => notify(e.message, "error")); }
+function loginEmail() { 
+    const email = document.getElementById('auth-email-login').value;
+    const password = document.getElementById('auth-password-login').value;
+    if(!email || !password) return notify("Please fill in all fields", "error");
+    auth.signInWithEmailAndPassword(email, password).catch(e => notify(e.message, "error")); 
+}
+function registerEmail() { 
+    const email = document.getElementById('auth-email-register').value;
+    const password = document.getElementById('auth-password-register').value;
+    const confirm = document.getElementById('auth-password-confirm').value;
+    if(!email || !password || !confirm) return notify("Please fill in all fields", "error");
+    if(password !== confirm) return notify("Passwords do not match", "error");
+    auth.createUserWithEmailAndPassword(email, password).catch(e => notify(e.message, "error")); 
+}
 function logout() { auth.signOut(); location.reload(); }
 
 function openDeckBuilder(id = null) {
@@ -40,7 +64,11 @@ function saveDeck() {
 function listenToUserDecks() {
     db.ref(`users/${currentUser.uid}/decks`).on('value', snap => {
         userDecks = snap.val() || {};
-        document.getElementById('user-decks-list').innerHTML = Object.keys(userDecks).map(id => `<div style="background:rgba(0,0,0,0.5); padding:10px; margin-bottom:5px; border-radius:6px; display:flex; justify-content:space-between;"><div><strong style="color:#3498db;">${userDecks[id].name}</strong></div><button onclick="openDeckBuilder('${id}')" style="background:#f39c12; padding:5px; border:none; border-radius:4px;">Edit</button></div>`).join('');
+        if(Object.keys(userDecks).length === 0) {
+            document.getElementById('user-decks-list').innerHTML = '<div style="text-align:center; color:#95a5a6; padding:20px;">No decks yet. Create one to get started!</div>';
+        } else {
+            document.getElementById('user-decks-list').innerHTML = Object.keys(userDecks).map(id => `<div class="deck-item"><div class="deck-name">${userDecks[id].name}</div><button onclick="openDeckBuilder('${id}')" style="background:#f39c12; padding:6px 12px; border:none; border-radius:4px; color:white; font-weight:600; cursor:pointer;">Edit</button></div>`).join('');
+        }
         document.getElementById('playmat-deck-select').innerHTML = '<option value="">Select Deck...</option>' + Object.keys(userDecks).map(id => `<option value="${id}">${userDecks[id].name}</option>`).join('');
     });
 }
@@ -54,7 +82,18 @@ function createLobby() {
 function joinLobby(id) { currentLobbyId = id; db.ref(`lobbies/${id}/players/${currentUser.uid}`).set({ name: currentUser.email, ready: false, life: 20 }); showScreen('game-lobby-screen'); listenToCurrentLobby(); }
 function listenToLobbies() {
     db.ref('lobbies').on('value', snap => {
-        let html = ''; snap.forEach(c => { if(c.val().status === 'waiting') html += `<div style="padding:10px; border:1px solid #34495e; margin-bottom:5px;">Lobby: ${c.val().format} <button onclick="joinLobby('${c.key}')" style="float:right; padding:5px;">Join</button></div>`; });
+        let html = '';
+        let hasLobbies = false;
+        snap.forEach(c => { 
+            if(c.val().status === 'waiting') {
+                hasLobbies = true;
+                const playerCount = Object.keys(c.val().players || {}).length;
+                html += `<div class="lobby-item"><div class="lobby-info"><div class="lobby-format">${c.val().format}</div><div style="font-size:0.85em; color:#95a5a6;">${playerCount}/${c.val().maxPlayers} players</div></div><button onclick="joinLobby('${c.key}')">Join</button></div>`; 
+            }
+        });
+        if(!hasLobbies) {
+            html = '<div style="text-align:center; color:#95a5a6; padding:20px;">No lobbies available. Create one to get started!</div>';
+        }
         document.getElementById('lobbies-list').innerHTML = html;
     });
 }
@@ -64,12 +103,25 @@ function listenToCurrentLobby() {
     db.ref(`lobbies/${currentLobbyId}`).on('value', snap => {
         const lobby = snap.val(); if(!lobby) return;
         const pArray = Object.entries(lobby.players || {});
-        document.getElementById('lobby-players-list').innerHTML = pArray.map(([, data]) => `<div style="color:${data.ready ? '#2ecc71' : '#e74c3c'}; padding:5px;">${data.name} - ${data.ready?'READY':'WAITING'}</div>`).join('');
+        document.getElementById('lobby-players-list').innerHTML = pArray.map(([, data]) => {
+            const statusClass = data.ready ? 'ready' : 'waiting';
+            const statusText = data.ready ? 'READY' : 'WAITING';
+            return `<div class="player-item ${statusClass}"><div class="player-name">${data.name}</div><div class="player-status ${statusClass}">${statusText}</div></div>`;
+        }).join('');
         
-        if (lobby.players[currentUser.uid]) document.getElementById('ready-btn').innerText = lobby.players[currentUser.uid].ready ? "Unready" : "Ready Up";
+        if (lobby.players[currentUser.uid]) {
+            const btn = document.getElementById('ready-btn');
+            if(lobby.players[currentUser.uid].ready) {
+                btn.innerText = "Unready";
+                btn.classList.add('unready');
+            } else {
+                btn.innerText = "Ready Up";
+                btn.classList.remove('unready');
+            }
+        }
 
         if(lobby.status === 'playing') {
-            if(!window.gameStarted) { window.gameStarted = true; notify("Match Started!"); showScreen('playmat'); document.getElementById('spawn-modal').style.display='block'; window.listenToTable(); }
+            if(!window.gameStarted) { window.gameStarted = true; notify("Match Started!", "info"); showScreen('playmat'); document.getElementById('spawn-modal').style.display='flex'; window.listenToTable(); }
         } else if(pArray.length === lobby.maxPlayers && pArray.every(([,p]) => p.ready) && lobby.hostId === currentUser.uid) {
             db.ref(`lobbies/${currentLobbyId}/status`).set('playing');
         }

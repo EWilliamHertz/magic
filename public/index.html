@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HatakePlay</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
@@ -9,78 +10,149 @@
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
 </head>
 <body>
+    <!-- Landing Screen -->
     <div id="landing-screen" class="screen active-screen">
-        <div class="center-box">
-            <h1>HatakePlay</h1>
-            <input type="email" id="auth-email" placeholder="Email Address">
-            <input type="password" id="auth-password" placeholder="Password">
-            <button onclick="loginEmail()">Login</button>
-            <button onclick="registerEmail()">Register</button>
+        <div class="landing-container">
+            <div class="landing-header">
+                <h1 class="landing-title">⚡ HatakePlay</h1>
+                <p class="landing-subtitle">Play Magic: The Gathering Online</p>
+            </div>
+            <div class="auth-box">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+                    <button class="auth-tab" onclick="switchAuthTab('register')">Create Account</button>
+                </div>
+                <div id="login-form" class="auth-form active">
+                    <input type="email" id="auth-email-login" placeholder="Email Address" class="auth-input">
+                    <input type="password" id="auth-password-login" placeholder="Password" class="auth-input">
+                    <button onclick="loginEmail()" class="auth-button primary">Sign In</button>
+                </div>
+                <div id="register-form" class="auth-form">
+                    <input type="email" id="auth-email-register" placeholder="Email Address" class="auth-input">
+                    <input type="password" id="auth-password-register" placeholder="Password" class="auth-input">
+                    <input type="password" id="auth-password-confirm" placeholder="Confirm Password" class="auth-input">
+                    <button onclick="registerEmail()" class="auth-button primary">Create Account</button>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Dashboard Screen (Pre-game Area) -->
     <div id="dashboard-screen" class="screen">
-        <h2>Welcome, <span id="user-display-name"></span></h2>
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>Welcome, <span id="user-display-name" class="username"></span></h1>
+            </div>
+            <button onclick="logout()" class="logout-btn">Logout</button>
+        </div>
         <div class="dashboard-container">
-            <div class="dashboard-panel">
-                <h3>My Inventory</h3>
-                <button onclick="openDeckBuilder()">+ Create New Deck</button>
-                <div id="user-decks-list"></div>
+            <!-- Deck Management Panel -->
+            <div class="dashboard-panel deck-panel">
+                <div class="panel-header">
+                    <h2>📚 My Decks</h2>
+                    <button onclick="openDeckBuilder()" class="btn-primary">+ New Deck</button>
+                </div>
+                <div id="user-decks-list" class="decks-list"></div>
             </div>
-            <div class="dashboard-panel">
-                <h3>Game Matchmaking</h3>
-                <select id="lobby-format"><option>STANDARD</option><option>MODERN</option></select>
-                <select id="lobby-max-players"><option value="1">1 Player</option><option value="2">2 Players</option></select>
-                <button onclick="createLobby()">Create Lobby</button>
-                <div id="lobbies-list"></div>
+
+            <!-- Matchmaking Panel -->
+            <div class="dashboard-panel matchmaking-panel">
+                <div class="panel-header">
+                    <h2>⚔️ Matchmaking</h2>
+                </div>
+                <div class="matchmaking-controls">
+                    <div class="control-group">
+                        <label>Format:</label>
+                        <select id="lobby-format" class="select-input">
+                            <option>STANDARD</option>
+                            <option>MODERN</option>
+                            <option>COMMANDER</option>
+                            <option>DRAFT</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Players:</label>
+                        <select id="lobby-max-players" class="select-input">
+                            <option value="1">1v1</option>
+                            <option value="2">2v2</option>
+                            <option value="3">Free-for-All (3)</option>
+                            <option value="4">Free-for-All (4)</option>
+                        </select>
+                    </div>
+                    <button onclick="createLobby()" class="btn-primary full-width">Create Lobby</button>
+                </div>
+                <div class="lobbies-header">
+                    <h3>Available Lobbies</h3>
+                </div>
+                <div id="lobbies-list" class="lobbies-list"></div>
             </div>
         </div>
     </div>
-    
+
+    <!-- Deck Builder Screen -->
     <div id="deck-builder-screen" class="screen">
-        <div class="center-box">
-            <h2 id="deck-builder-title">Deck Builder</h2>
-            <input type="text" id="new-deck-name" placeholder="Deck Name">
-            <textarea id="new-deck-list" placeholder="4 Lightning Bolt&#10;Sideboard&#10;2 Blood Moon"></textarea>
-            <button onclick="saveDeck()">Save Deck</button>
-            <button onclick="showScreen('dashboard-screen')">Cancel</button>
+        <div class="deck-builder-container">
+            <div class="deck-builder-header">
+                <h2 id="deck-builder-title">Create New Deck</h2>
+                <button onclick="showScreen('dashboard-screen')" class="close-btn">✕</button>
+            </div>
+            <div class="deck-builder-form">
+                <div class="form-group">
+                    <label>Deck Name</label>
+                    <input type="text" id="new-deck-name" placeholder="e.g., Mono Red Aggro" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Decklist</label>
+                    <textarea id="new-deck-list" placeholder="4 Lightning Bolt&#10;3 Goblin Guide&#10;&#10;Sideboard&#10;2 Blood Moon" class="form-textarea"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button onclick="saveDeck()" class="btn-primary">Save Deck</button>
+                    <button onclick="showScreen('dashboard-screen')" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Game Lobby Screen -->
     <div id="game-lobby-screen" class="screen">
-        <div class="center-box">
-            <h2>Lobby</h2>
-            <div id="lobby-players-list"></div>
-            <button id="ready-btn" onclick="toggleReadyStrict()">Ready Up</button>
+        <div class="lobby-container">
+            <div class="lobby-header">
+                <h2>Game Lobby</h2>
+                <button onclick="showScreen('dashboard-screen')" class="close-btn">✕</button>
+            </div>
+            <div class="lobby-content">
+                <div class="players-section">
+                    <h3>Players</h3>
+                    <div id="lobby-players-list" class="players-list"></div>
+                </div>
+                <div class="lobby-actions">
+                    <button id="ready-btn" onclick="toggleReadyStrict()" class="btn-ready">Ready Up</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="context-menu" class="context-menu">
-        <div class="menu-item" onclick="contextAction('flip')">Flip Card</div>
-        <div class="menu-item" onclick="contextAction('add-counter')">+1 Counter</div>
-        <div class="menu-item" onclick="contextAction('sub-counter')">-1 Counter</div>
-        <div class="menu-item" onclick="contextAction('hand')">Move to Hand</div>
-        <div class="menu-item" onclick="contextAction('deck')">To Top of Library</div>
-        <div class="menu-item" onclick="contextAction('bottom')">To Bottom of Library</div>
-        <div class="menu-item" onclick="contextAction('grave')">To Graveyard</div>
-        <div class="menu-item" onclick="contextAction('exile')">To Exile</div>
-    </div>
-
+    <!-- Playmat Screen -->
     <div id="playmat" class="screen">
-        <div id="spawn-modal" class="center-box" style="display:none; position:absolute; z-index:12000;">
-            <h3>Select Deck</h3>
-            <select id="playmat-deck-select"></select>
-            <button onclick="importSavedDeck()">Spawn Deck</button>
+        <div id="spawn-modal" class="spawn-modal">
+            <div class="spawn-modal-content">
+                <h3>Select Your Deck</h3>
+                <select id="playmat-deck-select" class="select-input"></select>
+                <button onclick="importSavedDeck()" class="btn-primary">Start Game</button>
+            </div>
         </div>
 
-        <button onclick="toggleTools()" class="tools-btn">⚙️ Tools</button>
+        <button onclick="toggleTools()" class="tools-btn" title="Tools">⚙️</button>
         <div id="tools-panel" class="tools-panel">
-            <button onclick="rollD20()">Roll D20</button>
+            <button onclick="rollD20()" class="tool-btn">🎲 Roll D20</button>
             <hr>
-            <input type="text" id="token-name" placeholder="Token Name">
-            <input type="text" id="token-oracle" placeholder="Oracle Text">
-            <input type="text" id="token-pt" placeholder="P/T (e.g. 1/1)">
-            <button onclick="spawnToken()">Create Token</button>
+            <div class="tool-section">
+                <h4>Create Token</h4>
+                <input type="text" id="token-name" placeholder="Token Name" class="tool-input">
+                <input type="text" id="token-oracle" placeholder="Oracle Text" class="tool-input">
+                <input type="text" id="token-pt" placeholder="P/T (e.g. 1/1)" class="tool-input">
+                <button onclick="spawnToken()" class="tool-btn">Create Token</button>
+            </div>
         </div>
 
         <div id="hand-zone"></div>
@@ -93,21 +165,44 @@
         <div id="my-exile-zone" class="zone">Exile</div>
         <div id="my-grave-zone" class="zone">Grave</div>
 
-        <div id="my-life" class="life-tracker"><span id="my-life-total">20</span><div><button onclick="updateLife(-1)">-</button><button onclick="updateLife(1)">+</button></div></div>
+        <div id="my-life" class="life-tracker"><span id="my-life-total">20</span><div><button onclick="updateLife(-1)">−</button><button onclick="updateLife(1)">+</button></div></div>
         <div id="opp-life" class="life-tracker" style="display:none;"><span id="opp-life-total">20</span></div>
 
         <div id="card-layer" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10;"></div>
-        
+
         <button onclick="untapAll()" id="btn-untap" title="Untap All">⟲</button>
-        
+
         <div id="game-start-controls">
             <button id="btn-draw-hand" onclick="handleDrawHandClick()">Draw Opening Hand (7)</button>
             <div id="mulligan-controls">
-                <button onclick="takeMulligan()" style="background:#e67e22;">Mulligan</button>
-                <button id="btn-keep-hand" onclick="keepHand()" style="background:#2ecc71;">Keep Hand</button>
-                <button id="btn-confirm-bottom" onclick="confirmBottom()" style="display:none; background:#3498db;">Confirm Bottom</button>
+                <button onclick="takeMulligan()" class="btn-mulligan">Mulligan</button>
+                <button id="btn-keep-hand" onclick="keepHand()" class="btn-keep">Keep Hand</button>
+                <button id="btn-confirm-bottom" onclick="confirmBottom()" class="btn-confirm" style="display:none;">Confirm Bottom</button>
             </div>
             <div id="mulligan-instructions"></div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu">
+        <div class="context-menu-row">
+            <div class="menu-item" onclick="contextAction('tap')">Tap/Untap</div>
+            <div class="menu-item" onclick="contextAction('flip')">Flip Card</div>
+        </div>
+        <div class="context-menu-row">
+            <div class="menu-item" onclick="contextAction('add-counter')">+1 Counter</div>
+            <div class="menu-item" onclick="contextAction('sub-counter')">−1 Counter</div>
+        </div>
+        <div class="context-menu-row">
+            <div class="menu-item" onclick="contextAction('hand')">To Hand</div>
+            <div class="menu-item" onclick="contextAction('deck')">Top of Library</div>
+        </div>
+        <div class="context-menu-row">
+            <div class="menu-item" onclick="contextAction('bottom')">Bottom of Library</div>
+            <div class="menu-item" onclick="contextAction('grave')">To Graveyard</div>
+        </div>
+        <div class="context-menu-row">
+            <div class="menu-item" onclick="contextAction('exile')">To Exile</div>
         </div>
     </div>
 

@@ -167,7 +167,8 @@ function renderTable() {
 function contextAction(act) {
     if(!window.contextCardId) return;
     const ref = db.ref(`lobbies/${currentLobbyId}/cards/${window.contextCardId}`);
-    if(act==='flip')          ref.update({ faceUp: !window.contextCardData.faceUp });
+    if(act==='tap')           ref.update({ tapped: !window.contextCardData.tapped });
+    else if(act==='flip')          ref.update({ faceUp: !window.contextCardData.faceUp });
     else if(act==='add-counter') ref.update({ counters: (window.contextCardData.counters || 0) + 1 });
     else if(act==='sub-counter') ref.update({ counters: (window.contextCardData.counters || 0) - 1 });
     else if(act==='hand')     ref.update({ zone: 'hand', x: 100, y: window.innerHeight - 150, faceUp: true, tapped: false });
