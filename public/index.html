@@ -134,55 +134,100 @@
 
     <!-- Playmat Screen -->
     <div id="playmat" class="screen">
-        <div id="spawn-modal" class="spawn-modal">
-            <div class="spawn-modal-content">
-                <h3>Select Your Deck</h3>
-                <select id="playmat-deck-select" class="select-input"></select>
-                <button onclick="importSavedDeck()" class="btn-primary">Start Game</button>
-            </div>
+        <div id="spawn-modal" class="center-box" style="display:none; position:absolute; z-index:12000;">
+            <h3>Select Deck</h3>
+            <select id="playmat-deck-select"></select>
+            <button onclick="importSavedDeck()">Spawn Deck</button>
         </div>
 
-        <button onclick="toggleTools()" class="tools-btn" title="Tools">⚙️</button>
-        <div id="tools-panel" class="tools-panel">
-            <button onclick="rollD20()" class="tool-btn">🎲 Roll D20</button>
-            <hr>
-            <div class="tool-section">
-                <h4>Create Token</h4>
-                <input type="text" id="token-name" placeholder="Token Name" class="tool-input">
-                <input type="text" id="token-oracle" placeholder="Oracle Text" class="tool-input">
-                <input type="text" id="token-pt" placeholder="P/T (e.g. 1/1)" class="tool-input">
-                <button onclick="spawnToken()" class="tool-btn">Create Token</button>
+        <div id="search-modal" class="center-box" style="display:none; position:absolute; z-index:12000; width:80vw; max-width:900px; height:80vh; overflow-y:auto; top:10vh;">
+            <h3>Search Library</h3>
+            <div id="search-grid" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom: 20px;"></div>
+            <button onclick="document.getElementById('search-modal').style.display='none'; shuffleLibrary();" style="background:#9b59b6;">Close & Shuffle</button>
+        </div>
+
+        <div id="scry-modal" class="center-box" style="display:none; position:absolute; z-index:12000;">
+            <h3>Scry</h3>
+            <div id="scry-grid"></div>
+        </div>
+
+        <div id="sideboard-modal" class="center-box" style="display:none; position:absolute; z-index:15000; width:90vw; max-width:1000px; top:5vh; flex-direction:column; align-items:center;">
+            <h2 style="color:#f1c40f;">Sideboarding Phase</h2>
+            <div style="display:flex; width:100%; gap:20px; justify-content:space-between;">
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; border-radius:8px;">
+                    <h4>Mainboard (<span id="mb-count">0</span>)</h4>
+                    <div id="sb-mainboard" style="display:flex; flex-wrap:wrap; gap:5px; max-height:50vh; overflow-y:auto;"></div>
+                </div>
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; border-radius:8px;">
+                    <h4>Sideboard (<span id="sb-count">0</span>)</h4>
+                    <div id="sb-sideboard" style="display:flex; flex-wrap:wrap; gap:5px; max-height:50vh; overflow-y:auto;"></div>
+                </div>
             </div>
+            <button onclick="submitSideboardAndRematch()" style="margin-top:20px; background:#2ecc71; padding:15px; width:100%;">Submit Deck & Rematch</button>
+        </div>
+
+        <button onclick="toggleTools()" class="tools-btn">⚙️ Tools</button>
+        <div id="tools-panel" class="tools-panel">
+            <button onclick="rollD20()">Roll D20</button>
+            <hr>
+            <input type="text" id="token-name" placeholder="Token Name">
+            <input type="text" id="token-oracle" placeholder="Oracle Text"> <input type="text" id="token-pt" placeholder="P/T (e.g. 1/1)">
+            <button onclick="spawnToken()">Create Token</button>
         </div>
 
         <div id="hand-zone"></div>
         <div class="hand-scroll-area left" onmouseenter="startHandScroll(25)" onmouseleave="stopHandScroll()">❮</div>
         <div class="hand-scroll-area right" onmouseenter="startHandScroll(-25)" onmouseleave="stopHandScroll()">❯</div>
 
-        <div id="my-deck-zone" class="zone" ondblclick="drawCard()" oncontextmenu="drawCard(); return false;">
+        <div id="my-deck-zone" class="zone" ondblclick="drawCard()" oncontextmenu="showLibraryMenu(event); return false;">
             Library <div id="deck-counter" class="deck-counter">0</div>
         </div>
-        <div id="my-exile-zone" class="zone">Exile</div>
-        <div id="my-grave-zone" class="zone">Grave</div>
+        <div id="my-exile-zone" class="zone" onclick="openZoneViewer('exile', currentUser.uid)">Exile</div>
+        <div id="my-grave-zone" class="zone" onclick="openZoneViewer('graveyard', currentUser.uid)">Grave</div>
 
-        <div id="my-life" class="life-tracker"><span id="my-life-total">20</span><div><button onclick="updateLife(-1)">−</button><button onclick="updateLife(1)">+</button></div></div>
+        <div id="card-preview-panel" class="ui-panel" style="display:none; top: 50%; left: 90px; transform: translateY(-50%); width: 240px; height: 336px; pointer-events: none; z-index: 10000; border: 4px solid #3498db; padding: 0;"></div>
+
+        <div id="zone-viewer-modal" class="center-box" style="display:none; position:absolute; z-index:12000; width:80vw; max-width:900px; height:80vh; overflow-y:auto; top:10vh;">
+            <h3 id="zone-viewer-title">Zone</h3>
+            <div id="zone-viewer-grid" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom: 20px;"></div>
+            <button onclick="document.getElementById('zone-viewer-modal').style.display='none';" style="background:#e74c3c;">Close Viewer</button>
+        </div>
+
+        <div id="my-life" class="life-tracker"><span id="my-life-total">20</span><div><button class="life-btn" onclick="updateLife(-1)">-</button><button class="life-btn" onclick="updateLife(1)">+</button></div></div>
         <div id="opp-life" class="life-tracker" style="display:none;"><span id="opp-life-total">20</span></div>
 
         <div id="card-layer" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10;"></div>
+        
+        <div id="phase-tracker" class="ui-panel top-center">
+            <div id="turn-indicator">Waiting for game...</div>
+            <div class="phases">
+                <span id="phase-untap">UNTAP</span><span id="phase-upkeep">UPKEEP</span><span id="phase-draw">DRAW</span><span id="phase-main1">MAIN 1</span><span id="phase-combat">COMBAT</span><span id="phase-main2">MAIN 2</span><span id="phase-end">END</span>
+            </div>
+            <button id="btn-pass-priority" onclick="passPriority()">Pass Priority</button>
+        </div>
+        <div id="mana-pool" class="ui-panel left-center">
+            <div class="mana-btn w" onclick="addMana('W')">W: <span id="mana-W">0</span></div><div class="mana-btn u" onclick="addMana('U')">U: <span id="mana-U">0</span></div><div class="mana-btn b" onclick="addMana('B')">B: <span id="mana-B">0</span></div><div class="mana-btn r" onclick="addMana('R')">R: <span id="mana-R">0</span></div><div class="mana-btn g" onclick="addMana('G')">G: <span id="mana-G">0</span></div><div class="mana-btn c" onclick="addMana('C')">C: <span id="mana-C">0</span></div>
+        </div>
+        <div id="game-log-container" class="ui-panel" style="top: 20%; right: 10px; width: 250px; display: flex; flex-direction: column;">
+            <div class="drag-header" onmousedown="startDragLog(event)">
+                <span style="cursor: pointer; flex: 1; text-align: left;" onclick="toggleLog()">📜 Game Log</span> 
+                <span id="log-toggle-icon" onclick="toggleLog()" style="cursor: pointer; padding: 0 5px;">▼</span>
+            </div>
+            <div id="game-log" style="height: 250px; display: flex;"></div>
+        </div>
 
         <button onclick="untapAll()" id="btn-untap" title="Untap All">⟲</button>
-
+        
         <div id="game-start-controls">
             <button id="btn-draw-hand" onclick="handleDrawHandClick()">Draw Opening Hand (7)</button>
             <div id="mulligan-controls">
-                <button onclick="takeMulligan()" class="btn-mulligan">Mulligan</button>
-                <button id="btn-keep-hand" onclick="keepHand()" class="btn-keep">Keep Hand</button>
-                <button id="btn-confirm-bottom" onclick="confirmBottom()" class="btn-confirm" style="display:none;">Confirm Bottom</button>
+                <button onclick="takeMulligan()" style="background:#e67e22;">Mulligan</button>
+                <button id="btn-keep-hand" onclick="keepHand()" style="background:#2ecc71;">Keep Hand</button>
+                <button id="btn-confirm-bottom" onclick="confirmBottom()" style="display:none; background:#3498db;">Confirm Bottom</button>
             </div>
             <div id="mulligan-instructions"></div>
         </div>
     </div>
-
     <!-- Context Menu -->
     <div id="context-menu" class="context-menu">
         <div class="context-menu-row">
@@ -204,6 +249,13 @@
         <div class="context-menu-row">
             <div class="menu-item" onclick="contextAction('exile')">To Exile</div>
         </div>
+    </div>
+    <div id="library-menu" class="context-menu">
+        <div class="menu-item" style="color: #3498db; font-weight: bold;" onclick="drawCard(); hideMenus();">Draw 1 Card</div>
+        <div class="menu-item" onclick="scryCards(1); hideMenus();">Scry 1</div>
+        <div class="menu-item" onclick="promptMill(); hideMenus();">Mill X</div>
+        <div class="menu-item" onclick="openSearchLibrary(); hideMenus();">Search Library</div>
+        <div class="menu-item" style="color: #9b59b6;" onclick="shuffleLibrary(); hideMenus();">Shuffle Library</div>
     </div>
 
     <script src="/js/app.js"></script>

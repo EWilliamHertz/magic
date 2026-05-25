@@ -133,9 +133,13 @@ function listenToCurrentLobby() {
         }
 
         if(lobby.status === 'playing') {
-            if(!window.gameStarted) { window.gameStarted = true; notify("Match Started!", "info"); showScreen('playmat'); document.getElementById('spawn-modal').style.display='flex'; window.listenToTable(); }
+            if(!window.gameStarted) { window.gameStarted = true; notify("Match Started!"); showScreen('playmat'); document.getElementById('spawn-modal').style.display='block'; window.listenToTable(); }
         } else if(pArray.length === lobby.maxPlayers && pArray.every(([,p]) => p.ready) && lobby.hostId === currentUser.uid) {
-            db.ref(`lobbies/${currentLobbyId}/status`).set('playing');
+            // Initiate the State Engine
+            db.ref(`lobbies/${currentLobbyId}`).update({
+                status: 'playing',
+                gameState: { turn: currentUser.uid, phase: 'untap', priority: currentUser.uid, passed: {} }
+            });
         }
     });
 }

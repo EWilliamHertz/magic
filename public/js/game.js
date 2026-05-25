@@ -18,20 +18,134 @@ document.addEventListener('click', () => { document.getElementById('context-menu
 document.addEventListener('mouseup', e => {
     if(draggedCard) {
         let nX = e.clientX - offsetX, nY = e.clientY - offsetY, z = 'battlefield';
-        // Cards can only return to hand via card effects (context menu), NOT by dragging
-        const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
-        const ex = document.getElementById('my-exile-zone').getBoundingClientRect();
-        if (Math.abs(nX - gr.left) < 70 && Math.abs(nY - gr.top) < 100) z = 'graveyard';
-        else if (Math.abs(nX - ex.left) < 70 && Math.abs(nY - ex.top) < 100) z = 'exile';
-        // All other drops go to battlefield (no accidental returns to hand)
+        if (nY > window.innerHeight - 220) { nX -= handScrollOffset; z = 'hand'; }
+        else {
+            const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
+            const ex = document.getElementById('my-exile-zone').getBoundingClientRect();
+            if (Math.abs(nX - gr.left) < 70 && Math.abs(nY - gr.top) < 100) z = 'graveyard';
+            else if (Math.abs(nX - ex.left) < 70 && Math.abs(nY - ex.top) < 100) z = 'exile';
+        }
+        
+        // ROADMAP 4: Spell Announcement (Hand -> Battlefield)
+        if(localCards[draggedCard].zone === 'hand' && z === 'battlefield') {
+            logAction(`cast ${localCards[draggedCard].name}`);
+        }
+
         db.ref(`lobbies/${currentLobbyId}/cards/${draggedCard}`).update({ x: nX, y: nY, zone: z });
         draggedCard = null;
     }
 });
+let gameState = {}, playersData = {};
 
-window.listenToTable = function() {
-    db.ref(`lobbies/${currentLobbyId}/cards`).on('value', snap => { localCards = snap.val() || {}; renderTable(); });
+window.listenToTable = function() { 
+    db.ref(`lobbies/${currentLobbyId}/cards`).on('value', snap => { localCards = snap.val() || {}; renderTable(); }); 
+    
+    // Core Game State Listener
+    db.ref(`lobbies/${currentLobbyId}/gameState`).on('value', snap => { 
+        if(!snap.exists()) return; 
+        gameState = snap.val(); 
+        renderPhaseTracker(); 
+    });
+    
+    // Player Stats (Mana) Listener
+    db.ref(`lobbies/${currentLobbyId}/players`).on('value', snap => { 
+        playersData = snap.val() || {}; 
+        renderManaPool(); 
+    });
+
+    // Game Log Listener
+    db.ref(`lobbies/${currentLobbyId}/log`).limitToLast(50).on('child_added', snap => {
+        const v = snap.val();
+        const logEl = document.getElementById('game-log');
+        const time = new Date(v.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        logEl.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> ${v.text}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+    });
 };
+
+// ROADMAP 4: Game Actions & Logging
+function logAction(msg) {
+    const name = document.getElementById('user-display-name').innerText;
+    db.ref(`lobbies/${currentLobbyId}/log`).push({ text: `<b>${name}</b> ${msg}`, time: Date.now() });
+}
+
+// ROADMAP 5: Mana Pool
+function addMana(color) {
+    db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/mana/${color}`).transaction(c => (c || 0) + 1)
+      .then(() => logAction(`added {${color}} to mana pool.`));
+}
+function emptyManaPool(uid) {
+    if(uid) db.ref(`lobbies/${currentLobbyId}/players/${uid}/mana`).set({ W:0, U:0, B:0, R:0, G:0, C:0 });
+}
+function renderManaPool() {
+    const myMana = playersData[currentUser.uid]?.mana || {W:0, U:0, B:0, R:0, G:0, C:0};
+    Object.keys(myMana).forEach(c => { const el = document.getElementById(`mana-${c}`); if(el) el.innerText = myMana[c]; });
+}
+
+// ROADMAP 1 & 2: Phases & Priority
+const PHASES = ['untap', 'upkeep', 'draw', 'main1', 'combat', 'main2', 'end'];
+
+function passPriority() {
+    if(gameState.priority !== currentUser.uid) return notify("You don't have priority!", "error");
+    
+    const opponentId = Object.keys(playersData).find(id => id !== currentUser.uid) || currentUser.uid;
+    let passed = gameState.passed || {};
+    passed[currentUser.uid] = true;
+
+    if (passed[opponentId] || opponentId === currentUser.uid) {
+        advancePhase(); // Both passed, proceed
+    } else {
+        db.ref(`lobbies/${currentLobbyId}/gameState`).update({ priority: opponentId, passed: passed });
+        logAction("passed priority.");
+    }
+}
+
+function advancePhase() {
+    if (gameState.turn !== currentUser.uid) return;
+
+    let idx = PHASES.indexOf(gameState.phase);
+    let nextPhase = PHASES[idx + 1];
+    let nextTurn = gameState.turn;
+
+    if (!nextPhase) {
+        nextPhase = 'untap';
+        nextTurn = Object.keys(playersData).find(id => id !== currentUser.uid) || currentUser.uid;
+        logAction("ended their turn.");
+    }
+
+    // ROADMAP 3: Auto-Untap & Auto-Draw
+    if (nextTurn === currentUser.uid && nextPhase === 'untap') { untapAll(); logAction("moved to Untap step."); } 
+    else if (nextTurn === currentUser.uid && nextPhase === 'draw') { drawCardsLogic(1); logAction("drew a card for turn."); }
+    else { logAction(`moved to ${nextPhase.toUpperCase()}`); }
+
+    emptyManaPool(currentUser.uid); // Mana drains on phase transitions
+
+    db.ref(`lobbies/${currentLobbyId}/gameState`).update({
+        turn: nextTurn, phase: nextPhase, priority: nextTurn, passed: {}
+    });
+}
+
+function renderPhaseTracker() {
+    const isMyTurn = gameState.turn === currentUser.uid;
+    const hasPriority = gameState.priority === currentUser.uid;
+    
+    const ind = document.getElementById('turn-indicator');
+    ind.innerText = isMyTurn ? "Your Turn" : "Opponent's Turn";
+    ind.style.color = isMyTurn ? "#2ecc71" : "#e74c3c";
+    
+    const btn = document.getElementById('btn-pass-priority');
+    btn.disabled = !hasPriority;
+    btn.innerText = hasPriority ? "Pass Priority" : "Waiting...";
+    btn.style.background = hasPriority ? "#2ecc71" : "#7f8c8d";
+
+    PHASES.forEach(p => {
+        const el = document.getElementById(`phase-${p}`);
+        if(el) {
+            if(gameState.phase === p) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+    });
+}
 
 // Generates card face HTML — shows real card art when available, text layout as fallback
 function generateCardFaceHTML(data) {
@@ -60,11 +174,18 @@ function renderTable() {
     Array.from(layer.children).forEach(ch => { if (!currIds.has(ch.dataset.cardId)) layer.removeChild(ch); });
 
     let myDeckCount = 0;
+    const dkRect = document.getElementById('my-deck-zone').getBoundingClientRect();
 
     cArr.forEach(({id, data}, i) => {
-        if (data.zone === 'sideboard') return;
-        if (data.owner === currentUser.uid && data.zone === 'deck') { myDeckCount++; return; }
-
+        let el = layer.querySelector(`[data-card-id='${id}']`);
+        
+        if (data.owner === currentUser.uid && data.zone === 'deck') myDeckCount++;
+        
+        // CRITICAL BUG FIX: If card is in deck or sideboard, explicitly destroy its HTML element
+        if (data.zone === 'sideboard' || data.zone === 'deck') { 
+            if (el) layer.removeChild(el); 
+            return; 
+        }
         const isMine = data.owner === currentUser.uid, inHand = data.zone === 'hand';
         let rX = isMine ? data.x + (inHand ? handScrollOffset : 0) : window.innerWidth - data.x - C_W;
         let rY = isMine ? data.y : window.innerHeight - data.y - C_H;
@@ -92,41 +213,35 @@ function renderTable() {
 
             // Double-click: ONLY hand → battlefield (smart snap), or ONLY battlefield → tap/untap
             el.ondblclick = e => {
-                e.stopPropagation();
-                if (isMine && inHand) {
-                    // Play card from hand to battlefield
-                    const bfH = window.innerHeight - 100; // battlefield height (above 100px hand zone)
-                    const isTopSnap = /Creature|Planeswalker/.test(data.typeLine || '');
-                    const snapY = isTopSnap
-                        ? bfH * 0.15 + Math.random() * (bfH * 0.2)       // top 15–35%
-                        : bfH * 0.55 + Math.random() * (bfH * 0.2);      // bottom 55–75%
-                    const snapX = 80 + Math.random() * (window.innerWidth - C_W - 160);
-                    db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({
-                        zone: 'battlefield',
-                        x: snapX,
-                        y: snapY,
-                        faceUp: true,
-                        tapped: false
-                    });
-                } else if (isMine && data.zone === 'battlefield') {
-                    // Tap/untap card on battlefield (only if NOT in hand)
-                    db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ tapped: !localCards[id].tapped });
-                }
-                // Cards in other zones (graveyard, exile, deck) won't double-click to move
-            };
+    e.stopPropagation();
+    const live = localCards[id]; // always read fresh from localCards
+    if (!live || live.owner !== currentUser.uid) return;
 
-            el.oncontextmenu = e => {
-                e.preventDefault();
-                if(isMine && !draggedCard) {
-                    window.contextCardId = id;
-                    window.contextCardData = localCards[id];
-                    const m = document.getElementById('context-menu');
-                    m.style.display = 'block';
-                    m.style.left = e.clientX + 'px';
-                    m.style.top = e.clientY + 'px';
-                }
-            };
+    if (live.zone === 'hand') {
+        const bfH = window.innerHeight - 100;
+        const isTopSnap = /Creature|Planeswalker/.test(live.typeLine || '');
+        const snapY = isTopSnap
+            ? bfH * 0.15 + Math.random() * (bfH * 0.2)
+            : bfH * 0.55 + Math.random() * (bfH * 0.2);
+        const snapX = 80 + Math.random() * (window.innerWidth - C_W - 160);
+        db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({
+            zone: 'battlefield', x: snapX, y: snapY, faceUp: true, tapped: false
+        });
+    } else if (live.zone === 'battlefield') {
+        db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ tapped: !live.tapped });
+    }
+    // graveyard, exile, deck: no double-click action
+};
+            el.oncontextmenu = e => { e.preventDefault(); if(isMine && !draggedCard){ window.contextCardId = id; window.contextCardData = localCards[id]; const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX+'px'; m.style.top = e.clientY+'px'; }};
         }
+
+        // ROADMAP 6: Card Hover Zoom Preview
+        el.onmouseenter = () => {
+            const preview = document.getElementById('card-preview-panel');
+            preview.style.display = 'block';
+            preview.innerHTML = generateCardFaceHTML({...data, faceUp: true}); // Auto reveal text for preview
+        };
+        el.onmouseleave = () => { document.getElementById('card-preview-panel').style.display = 'none'; };
 
         if (draggedCard !== id) {
             el.className = 'card' + (inHand && isMine ? ' hand-card' : '');
@@ -171,8 +286,11 @@ function contextAction(act) {
     else if(act==='flip')          ref.update({ faceUp: !window.contextCardData.faceUp });
     else if(act==='add-counter') ref.update({ counters: (window.contextCardData.counters || 0) + 1 });
     else if(act==='sub-counter') ref.update({ counters: (window.contextCardData.counters || 0) - 1 });
-    else if(act==='hand')     ref.update({ zone: 'hand', x: 100, y: window.innerHeight - 150, faceUp: true, tapped: false });
-    else if(act==='deck')     ref.update({ zone: 'deck', faceUp: false, tapped: false, sortOrder: Math.random() });
+else if(act==='hand') {
+        let hCount = Object.values(localCards).filter(v => v.owner === currentUser.uid && v.zone === 'hand').length;
+        let nX = window.innerWidth/2 - 250 + (hCount * 60);
+        ref.update({ zone: 'hand', x: nX, y: window.innerHeight - 150, faceUp: true, tapped: false });
+    }    else if(act==='deck')     ref.update({ zone: 'deck', faceUp: false, tapped: false, sortOrder: Math.random() });
     else if(act==='bottom')   ref.update({ zone: 'deck', faceUp: false, tapped: false, sortOrder: 99999 + Math.random() });
     else if(act==='grave')    ref.update({ zone: 'graveyard', x: document.getElementById('my-grave-zone').getBoundingClientRect().left, y: document.getElementById('my-grave-zone').getBoundingClientRect().top, faceUp: true, tapped: false });
     else if(act==='exile')    ref.update({ zone: 'exile', x: document.getElementById('my-exile-zone').getBoundingClientRect().left, y: document.getElementById('my-exile-zone').getBoundingClientRect().top, faceUp: true, tapped: false });
@@ -353,3 +471,240 @@ function keepHand() {
     document.getElementById('game-start-controls').style.display = 'none';
     notify('Game on! Good luck 🃏', 'success');
 }
+// --- ROADMAP 7 & UX: LIBRARY TOOLS ---
+window.promptMill = function() {
+    const x = parseInt(prompt("How many cards to mill?"));
+    if (!x || isNaN(x)) return;
+    let deck = Object.entries(localCards).filter(([,v]) => v.owner === currentUser.uid && v.zone === 'deck').sort((a,b) => (a[1].sortOrder||0) - (b[1].sortOrder||0));
+    if (deck.length < x) return notify("Not enough cards.", "error");
+    
+    let upd = {};
+    const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
+    for (let i = 0; i < x; i++) {
+        upd[`lobbies/${currentLobbyId}/cards/${deck[i][0]}/zone`] = 'graveyard';
+        upd[`lobbies/${currentLobbyId}/cards/${deck[i][0]}/x`] = gr.left;
+        upd[`lobbies/${currentLobbyId}/cards/${deck[i][0]}/y`] = gr.top;
+        upd[`lobbies/${currentLobbyId}/cards/${deck[i][0]}/faceUp`] = true;
+    }
+    db.ref().update(upd).then(() => logAction(`milled ${x} cards.`));
+};
+
+window.openSearchLibrary = function() {
+    const modal = document.getElementById('search-modal');
+    const grid = document.getElementById('search-grid');
+    grid.innerHTML = '';
+    
+    let deck = Object.entries(localCards).filter(([,v]) => v.owner === currentUser.uid && v.zone === 'deck').sort((a,b) => (a[1].sortOrder||0) - (b[1].sortOrder||0));
+    
+    deck.forEach(([id, data]) => {
+        const el = document.createElement('div');
+        el.style.width = '140px'; el.style.height = '196px'; el.style.position = 'relative';
+        el.innerHTML = generateCardFaceHTML({...data, faceUp: true}); 
+        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; flex-direction:column; justify-content:center; align-items:center; gap:5px; z-index:10; border-radius:6px;';
+        overlay.innerHTML = `
+            <button style="font-size:11px; padding:5px; width:80%;" onclick="moveFromSearch('${id}', 'hand')">To Hand</button>
+            <button style="font-size:11px; padding:5px; width:80%;" onclick="moveFromSearch('${id}', 'battlefield')">To Battlefield</button>
+            <button style="font-size:11px; padding:5px; width:80%; background:#e74c3c;" onclick="moveFromSearch('${id}', 'graveyard')">To Grave</button>
+        `;
+        el.onmouseenter = () => overlay.style.display = 'flex';
+        el.onmouseleave = () => overlay.style.display = 'none';
+        
+        el.appendChild(overlay);
+        grid.appendChild(el);
+    });
+    modal.style.display = 'block';
+    logAction("is searching their library.");
+};
+
+window.moveFromSearch = function(id, destZone) {
+    let nX = 0, nY = 0, faceUp = true;
+    if (destZone === 'hand') {
+        let hCount = Object.values(localCards).filter(v => v.owner === currentUser.uid && v.zone === 'hand').length;
+        nX = window.innerWidth/2 - 250 + (hCount * 60);
+        nY = window.innerHeight - 150;
+    } else if (destZone === 'battlefield') {
+        nX = window.innerWidth/2; nY = window.innerHeight/2;
+    } else if (destZone === 'graveyard') {
+        const gr = document.getElementById('my-grave-zone').getBoundingClientRect();
+        nX = gr.left; nY = gr.top;
+    }
+    db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ zone: destZone, x: nX, y: nY, faceUp: faceUp });
+    openSearchLibrary(); // Refresh grid
+};
+
+let scryQueue = [];
+window.scryCards = function(num) {
+    let deck = Object.entries(localCards).filter(([,v]) => v.owner === currentUser.uid && v.zone === 'deck').sort((a,b) => (a[1].sortOrder||0) - (b[1].sortOrder||0));
+    if(deck.length < num) return notify("Not enough cards.", "error");
+    
+    scryQueue = deck.slice(0, num);
+    renderScryModal();
+    document.getElementById('scry-modal').style.display = 'block';
+    logAction(`is scrying ${num}.`);
+};
+
+function renderScryModal() {
+    const grid = document.getElementById('scry-grid');
+    grid.innerHTML = '';
+    if(scryQueue.length === 0) {
+        document.getElementById('scry-modal').style.display = 'none';
+        return;
+    }
+    const [id, data] = scryQueue[0];
+    
+    const el = document.createElement('div');
+    el.style.width = '200px'; el.style.height = '280px'; el.style.margin = '0 auto';
+    el.innerHTML = generateCardFaceHTML({...data, faceUp: true});
+    grid.appendChild(el);
+    
+    grid.innerHTML += `
+        <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
+            <button onclick="resolveScry('${id}', 'top')">Keep on Top</button>
+            <button onclick="resolveScry('${id}', 'bottom')" style="background:#e74c3c;">Put on Bottom</button>
+        </div>
+    `;
+}
+
+window.resolveScry = function(id, pos) {
+    scryQueue.shift();
+    if (pos === 'bottom') db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ sortOrder: 99999 + Math.random() });
+    renderScryModal();
+};
+
+// --- ROADMAP 1: MID-GAME SIDEBOARDING (BO3) ---
+// This hooks into your existing Game Over listener
+function triggerGameOver(loser) {
+    document.getElementById('sideboard-modal').style.display = 'flex';
+    renderSideboardUI();
+    logAction(`Game Over. ${loser} was defeated. Entering sideboarding phase.`);
+}
+
+function renderSideboardUI() {
+    const mbGrid = document.getElementById('sb-mainboard');
+    const sbGrid = document.getElementById('sb-sideboard');
+    mbGrid.innerHTML = ''; sbGrid.innerHTML = '';
+    
+    let mbCount = 0; let sbCount = 0;
+    
+    Object.entries(localCards).forEach(([id, data]) => {
+        if(data.owner !== currentUser.uid) return;
+        
+        const el = document.createElement('div');
+        el.style.width = '100px'; el.style.height = '140px'; el.style.cursor = 'pointer';
+        el.innerHTML = generateCardFaceHTML({...data, faceUp: true});
+        
+        if (data.zone === 'sideboard') {
+            sbCount++;
+            el.onclick = () => { db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ zone: 'deck', faceUp: false }); setTimeout(renderSideboardUI, 100); };
+            sbGrid.appendChild(el);
+        } else {
+            mbCount++;
+            el.onclick = () => { db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ zone: 'sideboard', faceUp: true }); setTimeout(renderSideboardUI, 100); };
+            mbGrid.appendChild(el);
+        }
+    });
+    document.getElementById('mb-count').innerText = mbCount;
+    document.getElementById('sb-count').innerText = sbCount;
+}
+
+window.submitSideboardAndRematch = function() {
+    const upd = {};
+    const dX = document.getElementById('my-deck-zone').getBoundingClientRect().left;
+    const dY = document.getElementById('my-deck-zone').getBoundingClientRect().top;
+    
+    Object.entries(localCards).forEach(([id, data]) => {
+        if(data.owner !== currentUser.uid) return;
+        if(data.zone !== 'sideboard') {
+            upd[`lobbies/${currentLobbyId}/cards/${id}/zone`] = 'deck';
+            upd[`lobbies/${currentLobbyId}/cards/${id}/x`] = dX;
+            upd[`lobbies/${currentLobbyId}/cards/${id}/y`] = dY;
+            upd[`lobbies/${currentLobbyId}/cards/${id}/faceUp`] = false;
+            upd[`lobbies/${currentLobbyId}/cards/${id}/tapped`] = false;
+            upd[`lobbies/${currentLobbyId}/cards/${id}/counters`] = 0;
+            upd[`lobbies/${currentLobbyId}/cards/${id}/sortOrder`] = Math.random(); // Auto Shuffle
+        }
+    });
+    
+    db.ref().update(upd).then(() => {
+        db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}`).update({ life: 20 });
+        document.getElementById('sideboard-modal').style.display = 'none';
+        document.getElementById('game-start-controls').style.display = 'flex';
+        document.getElementById('btn-draw-hand').style.display = 'block';
+        notify("Deck submitted! Ready for Game 2.", "success");
+        logAction("finished sideboarding and is ready.");
+    });
+};
+// --- UI UX: Draggable Game Log ---
+let logDragging = false, logOffX, logOffY;
+window.startDragLog = function(e) {
+    if (e.target.tagName === 'SPAN') return; 
+    logDragging = true;
+    const logEl = document.getElementById('game-log-container');
+    const rect = logEl.getBoundingClientRect();
+    logOffX = e.clientX - rect.left;
+    logOffY = e.clientY - rect.top;
+};
+document.addEventListener('mousemove', e => {
+    if (logDragging) {
+        const logEl = document.getElementById('game-log-container');
+        logEl.style.left = (e.clientX - logOffX) + 'px';
+        logEl.style.top = (e.clientY - logOffY) + 'px';
+        logEl.style.right = 'auto'; 
+    }
+});
+document.addEventListener('mouseup', () => logDragging = false);
+
+window.toggleLog = function() {
+    const logContent = document.getElementById('game-log');
+    const icon = document.getElementById('log-toggle-icon');
+    if (logContent.style.display === 'none') {
+        logContent.style.display = 'flex'; icon.innerText = '▼';
+    } else {
+        logContent.style.display = 'none'; icon.innerText = '▲';
+    }
+};
+
+// --- ROADMAP 7: Graveyard / Exile Viewer ---
+window.openZoneViewer = function(zoneName, ownerId) {
+    const modal = document.getElementById('zone-viewer-modal');
+    const grid = document.getElementById('zone-viewer-grid');
+    document.getElementById('zone-viewer-title').innerText = zoneName.toUpperCase();
+    grid.innerHTML = '';
+    
+    let cardsInZone = Object.entries(localCards).filter(([,v]) => v.owner === ownerId && v.zone === zoneName);
+    
+    cardsInZone.forEach(([id, data]) => {
+        const el = document.createElement('div');
+        el.style.width = '140px'; el.style.height = '196px'; el.style.position = 'relative';
+        el.innerHTML = generateCardFaceHTML({...data, faceUp: true}); 
+        
+        if (ownerId === currentUser.uid) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; flex-direction:column; justify-content:center; align-items:center; gap:5px; z-index:10; border-radius:6px;';
+            overlay.innerHTML = `
+                <button style="font-size:11px; padding:5px; width:80%;" onclick="moveFromViewer('${id}', 'hand')">To Hand</button>
+                <button style="font-size:11px; padding:5px; width:80%;" onclick="moveFromViewer('${id}', 'battlefield')">To Battlefield</button>
+            `;
+            el.onmouseenter = () => overlay.style.display = 'flex';
+            el.onmouseleave = () => overlay.style.display = 'none';
+            el.appendChild(overlay);
+        }
+        grid.appendChild(el);
+    });
+    modal.style.display = 'block';
+};
+
+window.moveFromViewer = function(id, destZone) {
+    let nX = 0, nY = 0;
+    if (destZone === 'hand') {
+        let hCount = Object.values(localCards).filter(v => v.owner === currentUser.uid && v.zone === 'hand').length;
+        nX = window.innerWidth/2 - 250 + (hCount * 60);
+        nY = window.innerHeight - 150;
+    } else if (destZone === 'battlefield') {
+        nX = window.innerWidth/2; nY = window.innerHeight/2;
+    }
+    db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ zone: destZone, x: nX, y: nY, faceUp: true });
+    document.getElementById('zone-viewer-modal').style.display = 'none';
+};
