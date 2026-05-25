@@ -33,17 +33,15 @@ async function initApp() {
 initApp();
 
 function showScreen(id) {
-    // Hide all screens
     document.querySelectorAll('.screen').forEach(s => {
         s.style.display = 'none';
         s.classList.remove('active-screen');
     });
-    // Show the target screen
     const target = document.getElementById(id);
-    target.style.display = 'block';
+    // Use flex for all screens (they're all flex containers)
+    target.style.display = 'flex';
     target.classList.add('active-screen');
 
-    // Handle special playmat background
     if (id === 'playmat') document.body.style.backgroundImage = "url('/playmat.png')";
     else document.body.style.backgroundImage = "none";
 }
