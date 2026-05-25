@@ -14,23 +14,13 @@ body {
 }
 
 /* Screen Management */
-.screen {
-    display: none;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-.active-screen {
-    display: block;
-}
+.screen { display: none; width: 100vw; height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; }
+.active-screen { display: none !important; }
 
 /* ========== LANDING SCREEN ========== */
 #landing-screen {
     background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0d1626 100%);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
 }
@@ -73,7 +63,7 @@ body {
 }
 
 .auth-tabs {
-    display: flex;
+    display: none;
     gap: 10px;
     margin-bottom: 25px;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
@@ -109,7 +99,7 @@ body {
 }
 
 .auth-form.active {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 15px;
 }
@@ -173,12 +163,12 @@ body {
 #dashboard-screen {
     background: linear-gradient(to bottom, #0a0e27, #1a1f3a);
     padding: 20px;
-    display: flex;
+    display: none;
     flex-direction: column;
 }
 
 .dashboard-header {
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
@@ -228,12 +218,12 @@ body {
     border: 1px solid rgba(52, 152, 219, 0.2);
     border-radius: 12px;
     padding: 25px;
-    display: flex;
+    display: none;
     flex-direction: column;
 }
 
 .panel-header {
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
@@ -288,7 +278,7 @@ body {
 }
 
 .decks-list {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 12px;
     overflow-y: auto;
@@ -300,7 +290,7 @@ body {
     border: 1px solid rgba(52, 152, 219, 0.2);
     border-radius: 8px;
     padding: 15px;
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     transition: all 0.3s ease;
@@ -339,14 +329,14 @@ body {
 }
 
 .matchmaking-controls {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 15px;
     margin-bottom: 20px;
 }
 
 .control-group {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 8px;
 }
@@ -386,7 +376,7 @@ body {
 }
 
 .lobbies-list {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 10px;
     overflow-y: auto;
@@ -398,7 +388,7 @@ body {
     border: 1px solid rgba(46, 204, 113, 0.2);
     border-radius: 8px;
     padding: 15px;
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     transition: all 0.3s ease;
@@ -437,7 +427,7 @@ body {
 /* ========== DECK BUILDER SCREEN ========== */
 #deck-builder-screen {
     background: linear-gradient(to bottom, #0a0e27, #1a1f3a);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     padding: 20px;
@@ -455,7 +445,7 @@ body {
 }
 
 .deck-builder-header {
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
@@ -482,13 +472,13 @@ body {
 }
 
 .deck-builder-form {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 20px;
 }
 
 .form-group {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 8px;
 }
@@ -525,7 +515,7 @@ body {
 }
 
 .form-actions {
-    display: flex;
+    display: none;
     gap: 12px;
     margin-top: 10px;
 }
@@ -537,7 +527,7 @@ body {
 /* ========== GAME LOBBY SCREEN ========== */
 #game-lobby-screen {
     background: linear-gradient(to bottom, #0a0e27, #1a1f3a);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     padding: 20px;
@@ -555,7 +545,7 @@ body {
 }
 
 .lobby-header {
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
@@ -569,7 +559,7 @@ body {
 }
 
 .lobby-content {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 25px;
 }
@@ -581,7 +571,7 @@ body {
 }
 
 .players-list {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 12px;
 }
@@ -591,7 +581,7 @@ body {
     border-left: 4px solid #95a5a6;
     border-radius: 6px;
     padding: 15px;
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
     transition: all 0.3s ease;
@@ -632,7 +622,7 @@ body {
 }
 
 .lobby-actions {
-    display: flex;
+    display: none;
     gap: 12px;
     margin-top: 20px;
 }
@@ -673,7 +663,7 @@ body {
 }
 
 .spawn-modal {
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     position: absolute;
@@ -717,7 +707,7 @@ body {
     box-sizing: border-box;
     border-radius: 8px;
     color: rgba(255, 255, 255, 0.4);
-    display: flex;
+    display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -814,7 +804,7 @@ body {
     border-radius: 12px;
     width: 80px;
     height: 80px;
-    display: flex;
+    display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -835,7 +825,7 @@ body {
 }
 
 .life-tracker div {
-    display: flex;
+    display: none;
     gap: 5px;
     margin-top: 5px;
 }
@@ -979,7 +969,7 @@ body {
 }
 
 .context-menu-row {
-    display: flex;
+    display: none;
     gap: 8px;
     margin-bottom: 8px;
 }
@@ -1106,7 +1096,7 @@ body {
     border-radius: 50%;
     width: 32px;
     height: 32px;
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
     font-size: 12px;
@@ -1121,7 +1111,7 @@ body {
     width: 80px;
     height: 100px;
     z-index: 6000;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     color: rgba(255, 255, 255, 0.25);
@@ -1154,3 +1144,4 @@ body {
         grid-column: auto;
     }
 }
+.active-screen { display: block !important; }

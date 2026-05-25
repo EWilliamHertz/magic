@@ -32,7 +32,21 @@ async function initApp() {
 }
 initApp();
 
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen')); document.getElementById(id).classList.add('active-screen'); }
+function showScreen(id) {
+    // Hide all screens
+    document.querySelectorAll('.screen').forEach(s => {
+        s.style.display = 'none';
+        s.classList.remove('active-screen');
+    });
+    // Show the target screen
+    const target = document.getElementById(id);
+    target.style.display = 'block';
+    target.classList.add('active-screen');
+
+    // Handle special playmat background
+    if (id === 'playmat') document.body.style.backgroundImage = "url('/playmat.png')";
+    else document.body.style.backgroundImage = "none";
+}
 function loginEmail() { 
     const email = document.getElementById('auth-email-login').value;
     const password = document.getElementById('auth-password-login').value;
