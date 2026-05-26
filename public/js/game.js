@@ -176,16 +176,15 @@ function renderTable() {
     let myDeckCount = 0;
     const dkRect = document.getElementById('my-deck-zone').getBoundingClientRect();
 
-    cArr.forEach(({id, data}, i) => {
-        let el = layer.querySelector(`[data-card-id='${id}']`);
-        
-        if (data.owner === currentUser.uid && data.zone === 'deck') myDeckCount++;
-        
-        // CRITICAL BUG FIX: If card is in deck or sideboard, explicitly destroy its HTML element
+  cArr.forEach(({id, data}, i) => {
+        // FIX: Explicitly destroy the HTML element if it enters the deck or sideboard
         if (data.zone === 'sideboard' || data.zone === 'deck') { 
-            if (el) layer.removeChild(el); 
+            if (data.owner === currentUser.uid && data.zone === 'deck') myDeckCount++;
+            const staleEl = layer.querySelector(`[data-card-id='${id}']`);
+            if (staleEl) staleEl.remove();
             return; 
         }
+
         const isMine = data.owner === currentUser.uid, inHand = data.zone === 'hand';
         let rX = isMine ? data.x + (inHand ? handScrollOffset : 0) : window.innerWidth - data.x - C_W;
         let rY = isMine ? data.y : window.innerHeight - data.y - C_H;
@@ -232,16 +231,19 @@ function renderTable() {
     }
     // graveyard, exile, deck: no double-click action
 };
-            el.oncontextmenu = e => { e.preventDefault(); if(isMine && !draggedCard){ window.contextCardId = id; window.contextCardData = localCards[id]; const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX+'px'; m.style.top = e.clientY+'px'; }};
+ el.oncontextmenu = e => { e.preventDefault(); if(isMine && !draggedCard){ window.contextCardId = id; window.contextCardData = localCards[id]; const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX+'px'; m.style.top = e.clientY+'px'; }};
         }
 
-        // ROADMAP 6: Card Hover Zoom Preview
-        el.onmouseenter = () => {
-            const preview = document.getElementById('card-preview-panel');
-            preview.style.display = 'block';
-            preview.innerHTML = generateCardFaceHTML({...data, faceUp: true}); // Auto reveal text for preview
-        };
-        el.onmouseleave = () => { document.getElementById('card-preview-panel').style.display = 'none'; };
+        // Trigger Zoom Preview on Hover
+        if (el) {
+            el.onmouseenter = () => {
+                const preview = document.getElementById('card-preview-panel');
+                preview.style.display = 'block';
+                // Force faceUp true so we can read the text even if it's currently face down
+                preview.innerHTML = genHTML({...data, faceUp: true}); 
+            };
+            el.onmouseleave = () => { document.getElementById('card-preview-panel').style.display = 'none'; };
+        }
 
         if (draggedCard !== id) {
             el.className = 'card' + (inHand && isMine ? ' hand-card' : '');

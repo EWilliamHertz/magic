@@ -196,7 +196,9 @@
         <div id="my-life" class="life-tracker"><span id="my-life-total">20</span><div><button class="life-btn" onclick="updateLife(-1)">-</button><button class="life-btn" onclick="updateLife(1)">+</button></div></div>
         <div id="opp-life" class="life-tracker" style="display:none;"><span id="opp-life-total">20</span></div>
 
-        <div id="card-layer" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10;"></div>
+        <div id="card-preview-panel" style="display:none; position:absolute; top: 50%; left: 90px; transform: translateY(-50%); width: 220px; height: 308px; pointer-events: none; z-index: 10000; box-shadow: 0 0 30px rgba(0,0,0,0.9); border: 2px solid #3498db; border-radius: 8px;"></div>
+        
+        <div id="card-layer" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10;"></div>
         
         <div id="phase-tracker" class="ui-panel top-center">
             <div id="turn-indicator">Waiting for game...</div>
