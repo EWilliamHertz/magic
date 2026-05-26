@@ -68,10 +68,19 @@
                     <div class="control-group">
                         <label>Format:</label>
                         <select id="lobby-format" class="select-input">
-                            <option>STANDARD</option>
-                            <option>MODERN</option>
-                            <option>COMMANDER</option>
-                            <option>DRAFT</option>
+                            <option value="">Select Format...</option>
+                            <option value="standard">STANDARD</option>
+                            <option value="modern">MODERN</option>
+                            <option value="premodern">PREMODERN</option>
+                            <option value="legacy">LEGACY</option>
+                            <option value="vintage">VINTAGE</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Match Type:</label>
+                        <select id="lobby-best-of" class="select-input">
+                            <option value="1">Best of 1</option>
+                            <option value="3">Best of 3</option>
                         </select>
                     </div>
                     <div class="control-group">

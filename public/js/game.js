@@ -70,9 +70,13 @@ function logAction(msg) {
 }
 
 // ROADMAP 5: Mana Pool
-function addMana(color) {
-    db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/mana/${color}`).transaction(c => (c || 0) + 1)
-      .then(() => logAction(`added {${color}} to mana pool.`));
+function addMana(color, amt = 1) {
+    db.ref(`lobbies/${currentLobbyId}/players/${currentUser.uid}/mana/${color}`).transaction(c => Math.max(0, (c || 0) + amt))
+      .then(() => { if(amt > 0) logAction(`added {${color}} to mana pool.`); });
+}
+
+function removeMana(color) {
+    addMana(color, -1);
 }
 function emptyManaPool(uid) {
     if(uid) db.ref(`lobbies/${currentLobbyId}/players/${uid}/mana`).set({ W:0, U:0, B:0, R:0, G:0, C:0 });
@@ -188,7 +192,7 @@ function renderTable() {
         const isMine = data.owner === currentUser.uid, inHand = data.zone === 'hand';
         let rX = isMine ? data.x + (inHand ? handScrollOffset : 0) : window.innerWidth - data.x - C_W;
         let rY = isMine ? data.y : window.innerHeight - data.y - C_H;
-        if (inHand && isMine) rY = window.innerHeight - 80; // FIX: Lower hand cards to reveal 40%
+        if (inHand && isMine) rY = window.innerHeight - 60; // FIX: Show only ~60px of top portion
 
         let el = layer.querySelector(`[data-card-id='${id}']`);
         if (!el) {
@@ -274,7 +278,7 @@ function renderTable() {
     document.getElementById('deck-counter').innerText = myDeckCount;
 
     if (myDeckCount > 0 && !draggedCard) {
-        document.getElementById('my-deck-zone').style.backgroundImage = `url('/api/card-image?url=${encodeURIComponent("https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering_card_back.jpg")}')`;
+        document.getElementById('my-deck-zone').style.backgroundImage = `url('/card-back.png')`;
         document.getElementById('my-deck-zone').style.backgroundSize = 'cover';
     } else {
         document.getElementById('my-deck-zone').style.backgroundImage = 'none';
@@ -340,43 +344,74 @@ async function importSavedDeck() {
     document.getElementById('spawn-modal').style.display = 'none';
     notify('Fetching card data from Scryfall…', 'info');
 
-    let cards = [];
+    let mainboardCards = [];
+    let sideboardCards = [];
     const lines = userDecks[did].list.split('\n');
+    let isMainboard = true;
+    
     for (let l of lines) {
         l = l.trim();
-        if(!l || l.toLowerCase().startsWith('sideboard')) continue;
+        if(!l) continue;
+        
+        // Check for sideboard section
+        if(l.toLowerCase() === 'sideboard') {
+            isMainboard = false;
+            continue;
+        }
+        
         const match = l.match(/^(\d+)\s+(.+)$/);
         if(match) {
             try {
                 const res = await fetch(`/api/card-data?fuzzy=${encodeURIComponent(match[2].trim())}`);
                 const json = res.ok ? await res.json() : { name: match[2].trim() };
-                for(let i = 0; i < parseInt(match[1]); i++) {
-                    cards.push({
+                const cardCount = parseInt(match[1]);
+                
+                for(let i = 0; i < cardCount; i++) {
+                    const cardData = {
                         name: json.name || match[2].trim(),
                         image: json.image_url || 'none',
                         oracleText: json.oracle_text || '',
                         typeLine: json.type_line || '',
                         pt: json.power ? `${json.power}/${json.toughness}` : '',
-                        zone: 'deck'
-                    });
+                        zone: isMainboard ? 'deck' : 'sideboard'
+                    };
+                    
+                    if(isMainboard) {
+                        mainboardCards.push(cardData);
+                    } else {
+                        sideboardCards.push(cardData);
+                    }
                 }
                 // Small delay to respect Scryfall rate limit
                 await new Promise(r => setTimeout(r, 80));
             } catch(e) {
-                cards.push({ name: match[2].trim(), image: 'none', oracleText: '', typeLine: '', pt: '', zone: 'deck' });
+                const cardData = { name: match[2].trim(), image: 'none', oracleText: '', typeLine: '', pt: '', zone: isMainboard ? 'deck' : 'sideboard' };
+                if(isMainboard) {
+                    mainboardCards.push(cardData);
+                } else {
+                    sideboardCards.push(cardData);
+                }
             }
         }
     }
 
-    // Fisher-Yates shuffle
-    for(let i = cards.length - 1; i > 0; i--) {
+    // Fisher-Yates shuffle mainboard only
+    for(let i = mainboardCards.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [cards[i], cards[j]] = [cards[j], cards[i]];
+        [mainboardCards[i], mainboardCards[j]] = [mainboardCards[j], mainboardCards[i]];
+    }
+
+    // Warn if deck sizes are wrong
+    if(mainboardCards.length !== 60) {
+        notify(`Warning: Mainboard has ${mainboardCards.length} cards (should be 60)`, 'info');
+    }
+    if(sideboardCards.length !== 15) {
+        notify(`Warning: Sideboard has ${sideboardCards.length} cards (should be 15)`, 'info');
     }
 
     const upd = {};
-    cards.forEach((c, i) => {
-        upd[`lobbies/${currentLobbyId}/cards/${Date.now()}_${i}`] = {
+    mainboardCards.forEach((c, i) => {
+        upd[`lobbies/${currentLobbyId}/cards/${Date.now()}_mb_${i}`] = {
             ...c,
             owner: currentUser.uid,
             faceUp: false,
@@ -385,13 +420,25 @@ async function importSavedDeck() {
             sortOrder: i  // sortOrder = shuffle index → preserves Fisher-Yates order
         };
     });
+    
+    sideboardCards.forEach((c, i) => {
+        upd[`lobbies/${currentLobbyId}/cards/${Date.now()}_sb_${i}`] = {
+            ...c,
+            owner: currentUser.uid,
+            faceUp: false,
+            tapped: false,
+            counters: 0,
+            sortOrder: i
+        };
+    });
 
     db.ref().update(upd).then(() => {
-        notify(`Deck spawned! (${cards.length} cards)`, 'success');
+        notify(`Deck spawned! (${mainboardCards.length} mainboard, ${sideboardCards.length} sideboard)`, 'success');
         document.getElementById('game-start-controls').style.display = 'flex';
         document.getElementById('btn-draw-hand').style.display = 'block';
     });
 }
+
 
 function handleDrawHandClick() {
     document.getElementById('btn-draw-hand').style.display = 'none';
@@ -403,6 +450,11 @@ function handleDrawHandClick() {
 function drawCard() {
     if (isMulliganPhase) return notify('Cannot draw during mulligan phase!', 'error');
     drawCardsLogic(1);
+}
+
+function drawFromLibrary() {
+    if (isMulliganPhase) return notify('Cannot draw during mulligan phase!', 'error');
+    drawCard();
 }
 
 function drawCardsLogic(amt) {
@@ -716,3 +768,47 @@ window.moveFromViewer = function(id, destZone) {
     db.ref(`lobbies/${currentLobbyId}/cards/${id}`).update({ zone: destZone, x: nX, y: nY, faceUp: true });
     document.getElementById('zone-viewer-modal').style.display = 'none';
 };
+
+// FIX 8: showLibraryMenu context menu
+window.showLibraryMenu = function(event) {
+    const menu = document.getElementById('library-menu');
+    menu.style.display = 'block';
+    menu.style.left = event.clientX + 'px';
+    menu.style.top = event.clientY + 'px';
+};
+
+// FIX 8: Helper function to hide all menus
+function hideMenus() {
+    document.getElementById('context-menu').style.display = 'none';
+    document.getElementById('library-menu').style.display = 'none';
+}
+
+// FIX 9: Card preview popup when hovering
+function showCardPreview(cardData, x, y) {
+    if(!cardData) return;
+    const preview = document.getElementById('card-preview-panel');
+    preview.innerHTML = generateCardFaceHTML({...cardData, faceUp: true});
+    preview.style.display = 'block';
+    
+    // Position popup so it doesn't go off-screen
+    let posX = x + 10;
+    let posY = y + 10;
+    
+    // Adjust if would go off-screen
+    if(posX + 220 > window.innerWidth) posX = window.innerWidth - 220 - 10;
+    if(posY + 308 > window.innerHeight) posY = window.innerHeight - 308 - 10;
+    
+    preview.style.left = posX + 'px';
+    preview.style.top = posY + 'px';
+}
+
+// FIX 6: Create/use Magic card back image
+window.toggleManaPool = function() {
+    const pool = document.getElementById('mana-pool');
+    pool.style.display = pool.style.display === 'none' ? 'block' : 'none';
+};
+
+// Helper function for card generation HTML (used in preview)
+function genHTML(data) {
+    return generateCardFaceHTML(data);
+}

@@ -92,9 +92,21 @@ function listenToUserDecks() {
 }
 
 function createLobby() {
-    const format = document.getElementById('lobby-format').value, maxPlayers = parseInt(document.getElementById('lobby-max-players').value);
+    const format = document.getElementById('lobby-format').value;
+    const bestOf = document.getElementById('lobby-best-of')?.value || '1';
+    const maxPlayers = parseInt(document.getElementById('lobby-max-players').value);
+    
+    if(!format) return notify('Please select a format', 'error');
+    
     currentLobbyId = db.ref('lobbies').push().key;
-    db.ref(`lobbies/${currentLobbyId}`).set({ format, maxPlayers, hostId: currentUser.uid, status: 'waiting', players: { [currentUser.uid]: { name: currentUser.email, ready: false, life: 20 } } });
+    db.ref(`lobbies/${currentLobbyId}`).set({ 
+        format, 
+        bestOf,
+        maxPlayers, 
+        hostId: currentUser.uid, 
+        status: 'waiting', 
+        players: { [currentUser.uid]: { name: currentUser.email, ready: false, life: 20 } } 
+    });
     showScreen('game-lobby-screen'); listenToCurrentLobby();
 }
 function joinLobby(id) { currentLobbyId = id; db.ref(`lobbies/${id}/players/${currentUser.uid}`).set({ name: currentUser.email, ready: false, life: 20 }); showScreen('game-lobby-screen'); listenToCurrentLobby(); }
@@ -157,5 +169,26 @@ window.promptNickname = function() {
             document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${nick}`;
             notify("Nickname updated!", "success");
         });
+    }
+};
+
+// FIX 2: Edit profile function
+window.editProfile = function() {
+    const nick = prompt("Enter your nickname:", document.getElementById('user-display-name').innerText);
+    if (nick && currentUser) {
+        currentUser.updateProfile({ displayName: nick }).then(() => {
+            document.getElementById('user-display-name').innerText = nick;
+            document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${nick}`;
+            notify("Profile updated!", "success");
+        }).catch(e => notify(e.message, "error"));
+    }
+};
+
+// FIX 2: Update avatar seed
+window.updateAvatarSeed = function() {
+    const seed = prompt("Enter avatar seed:", document.getElementById('user-display-name').innerText);
+    if(seed) {
+        document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+        notify("Avatar updated!", "success");
     }
 };

@@ -14,13 +14,13 @@ body {
 }
 
 /* Screen Management */
-.screen { display: none; width: 100vw; height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; }
-.active-screen { display: none !important; }
+.screen { display: none !important; width: 100vw; height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; }
+.active-screen { display: flex !important; }
 
 /* ========== LANDING SCREEN ========== */
 #landing-screen {
     background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0d1626 100%);
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
 }
@@ -1132,7 +1132,6 @@ body {
         grid-column: auto;
     }
 }
-.active-screen { display: flex !important; }
 /* Phase Tracker & New UI */
 .ui-panel { position: absolute; background: rgba(15, 20, 25, 0.95); border: 1px solid #34495e; border-radius: 8px; z-index: 8000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
 .top-center { top: 10px; left: 50%; transform: translateX(-50%); padding: 10px 20px; display: flex; flex-direction: column; align-items: center; }
