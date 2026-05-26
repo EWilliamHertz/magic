@@ -154,9 +154,15 @@ body {
     box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
 }
 
-.auth-button.primary:hover {
+.auth-button.primary:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 12px 30px rgba(52, 152, 219, 0.5);
+}
+
+.auth-button.primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* ========== DASHBOARD SCREEN ========== */

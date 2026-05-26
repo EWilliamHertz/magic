@@ -1,9 +1,35 @@
 function notify(msg, type = "success") {
-    const t = document.createElement('div'); t.innerText = msg;
-    t.style.cssText = `position:fixed; bottom:20px; right:20px; background:${type === 'error' ? '#e74c3c' : type === 'info' ? '#3498db' : '#2ecc71'}; color:white; padding:12px 20px; border-radius:6px; z-index:15000; font-weight:bold; transition:0.3s; opacity:0; transform:translateY(20px);`;
+    const colors = {
+        'success': '#2ecc71',
+        'error': '#e74c3c',
+        'info': '#3498db'
+    };
+    const bg = colors[type] || colors.success;
+    const duration = type === 'error' ? 5000 : 5000; // Increased from 3.5s to 5s
+    
+    const t = document.createElement('div'); 
+    t.innerText = msg;
+    
+    // Improved positioning: center-bottom instead of bottom-right
+    const boxShadow = type === 'error' 
+        ? 'box-shadow: 0 8px 30px rgba(231, 76, 60, 0.4);' 
+        : 'box-shadow: 0 8px 30px rgba(46, 204, 113, 0.4);';
+    
+    t.style.cssText = `position:fixed; bottom:40px; left:50%; transform:translateX(-50%) translateY(30px); background:${bg}; color:white; padding:16px 24px; border-radius:8px; z-index:15000; font-weight:bold; transition:all 0.3s ease; opacity:0; ${boxShadow} font-size:14px;`;
     document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; }, 10);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3500);
+    
+    // Animate in
+    setTimeout(() => { 
+        t.style.opacity = '1'; 
+        t.style.transform = 'translateX(-50%) translateY(0)'; 
+    }, 10);
+    
+    // Animate out
+    setTimeout(() => { 
+        t.style.opacity = '0'; 
+        t.style.transform = 'translateX(-50%) translateY(30px)';
+        setTimeout(() => t.remove(), 300); 
+    }, duration);
 }
 
 function switchAuthTab(tab) {
@@ -22,19 +48,35 @@ let db, auth, currentUser, currentLobbyId, userDecks = {}, editingDeckId = null;
 
 async function initApp() {
     try {
-        const res = await fetch('/api/config'); const cfg = await res.json();
-        firebase.initializeApp(cfg); db = firebase.database(); auth = firebase.auth();
+        console.log('[Firebase] Starting initialization...');
+        const res = await fetch('/api/config'); 
+        const cfg = await res.json();
+        console.log('[Firebase] Config loaded:', { projectId: cfg.projectId, authDomain: cfg.authDomain });
+        
+        firebase.initializeApp(cfg); 
+        db = firebase.database(); 
+        auth = firebase.auth();
+        console.log('[Firebase] Initialized successfully');
+        
         auth.onAuthStateChanged(u => {
             if(u) { 
+                console.log('[Auth] User logged in:', u.email);
                 currentUser = u; 
                 const name = u.displayName || u.email.split('@')[0];
                 document.getElementById('user-display-name').innerText = name; 
                 document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
                 showScreen('dashboard-screen'); listenToLobbies(); listenToUserDecks(); 
             }
-            else { currentUser = null; showScreen('landing-screen'); }
+            else { 
+                console.log('[Auth] No user logged in');
+                currentUser = null; 
+                showScreen('landing-screen'); 
+            }
         });
-    } catch(e) { notify("Backend Connection Failed", "error"); }
+    } catch(e) { 
+        console.error('[Firebase] Initialization failed:', e);
+        notify("Backend Connection Failed", "error"); 
+    }
 }
 initApp();
 
@@ -54,16 +96,82 @@ function showScreen(id) {
 function loginEmail() { 
     const email = document.getElementById('auth-email-login').value;
     const password = document.getElementById('auth-password-login').value;
+    
     if(!email || !password) return notify("Please fill in all fields", "error");
-    auth.signInWithEmailAndPassword(email, password).catch(e => notify(e.message, "error")); 
+    
+    // Get button reference and show loading state
+    const btn = document.querySelector('[onclick="loginEmail()"]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Signing in...";
+    
+    console.log('[Login] Attempting login for:', email);
+    
+    auth.signInWithEmailAndPassword(email, password)
+        .then(result => {
+            console.log('[Login] Success for:', email);
+            notify("Login successful! Redirecting...", "success");
+            btn.textContent = originalText;
+            btn.disabled = false;
+            // Clear form
+            document.getElementById('auth-email-login').value = '';
+            document.getElementById('auth-password-login').value = '';
+        })
+        .catch(e => {
+            console.error('[Login] Failed:', e.code, e.message);
+            // Provide user-friendly error messages
+            let userMessage = e.message;
+            if(e.code === 'auth/user-not-found') userMessage = "No account found with that email";
+            if(e.code === 'auth/wrong-password') userMessage = "Incorrect password";
+            if(e.code === 'auth/invalid-email') userMessage = "Invalid email address";
+            if(e.code === 'auth/too-many-requests') userMessage = "Too many login attempts. Try again later.";
+            
+            notify(userMessage, "error");
+            btn.textContent = originalText;
+            btn.disabled = false;
+        });
 }
 function registerEmail() { 
     const email = document.getElementById('auth-email-register').value;
     const password = document.getElementById('auth-password-register').value;
     const confirm = document.getElementById('auth-password-confirm').value;
+    
     if(!email || !password || !confirm) return notify("Please fill in all fields", "error");
     if(password !== confirm) return notify("Passwords do not match", "error");
-    auth.createUserWithEmailAndPassword(email, password).catch(e => notify(e.message, "error")); 
+    
+    // Get button reference and show loading state
+    const btn = document.querySelector('[onclick="registerEmail()"]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Creating account...";
+    
+    console.log('[Register] Attempting registration for:', email);
+    
+    auth.createUserWithEmailAndPassword(email, password)
+        .then(result => {
+            console.log('[Register] Success for:', email);
+            notify("Account created! Logging you in...", "success");
+            btn.textContent = originalText;
+            btn.disabled = false;
+            // Clear form
+            document.getElementById('auth-email-register').value = '';
+            document.getElementById('auth-password-register').value = '';
+            document.getElementById('auth-password-confirm').value = '';
+            // onAuthStateChanged will automatically log them in
+        })
+        .catch(e => {
+            console.error('[Register] Failed:', e.code, e.message);
+            // Provide user-friendly error messages
+            let userMessage = e.message;
+            if(e.code === 'auth/email-already-in-use') userMessage = "Email already in use. Try logging in instead.";
+            if(e.code === 'auth/invalid-email') userMessage = "Invalid email address";
+            if(e.code === 'auth/weak-password') userMessage = "Password is too weak (min 6 characters)";
+            if(e.code === 'auth/operation-not-allowed') userMessage = "Registration is temporarily disabled";
+            
+            notify(userMessage, "error");
+            btn.textContent = originalText;
+            btn.disabled = false;
+        });
 }
 function logout() { auth.signOut(); location.reload(); }
 
