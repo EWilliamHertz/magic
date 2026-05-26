@@ -188,6 +188,7 @@ function renderTable() {
         const isMine = data.owner === currentUser.uid, inHand = data.zone === 'hand';
         let rX = isMine ? data.x + (inHand ? handScrollOffset : 0) : window.innerWidth - data.x - C_W;
         let rY = isMine ? data.y : window.innerHeight - data.y - C_H;
+        if (inHand && isMine) rY = window.innerHeight - 80; // FIX: Lower hand cards to reveal 40%
 
         let el = layer.querySelector(`[data-card-id='${id}']`);
         if (!el) {

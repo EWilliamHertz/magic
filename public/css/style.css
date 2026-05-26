@@ -730,7 +730,7 @@ body {
     pointer-events: none;
 }
 
-#my-deck-zone { bottom: 230px; right: 20px; width: 140px; height: 196px; border: 2px solid #555; background: rgba(0,0,0,0.8); cursor: pointer; }
+#my-deck-zone { bottom: 230px; right: 20px; width: 140px; height: 196px; border: 2px solid #555; background: rgba(0,0,0,0.8); cursor: pointer; z-index: 20; pointer-events: auto; }
 #my-grave-zone { bottom: 230px; right: 175px; width: 140px; height: 196px; border: 2px dashed #444; background: rgba(0,0,0,0.6); }
 #my-exile-zone { bottom: 440px; right: 20px; width: 140px; height: 196px; border: 2px dashed #333; background: rgba(0,0,0,0.9); }
 

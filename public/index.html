@@ -39,11 +39,15 @@
 
     <!-- Dashboard Screen (Pre-game Area) -->
     <div id="dashboard-screen" class="screen">
-        <div class="dashboard-header">
-            <div class="dashboard-title">
-                <h1>Welcome, <span id="user-display-name" class="username"></span></h1>
+        <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,20,25,0.95); padding:20px; border-bottom:2px solid #3498db; margin-bottom: 20px;">
+            <div class="dashboard-title" style="display:flex; align-items:center; gap:15px;">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Player" id="user-avatar" style="width:50px; height:50px; border-radius:50%; background:#333;">
+                <h1 style="margin:0;">Welcome, <span id="user-display-name" class="username" style="color:#3498db;"></span></h1>
             </div>
-            <button onclick="logout()" class="logout-btn">Logout</button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="promptNickname()" style="background:#f39c12; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">Set Nickname</button>
+                <button onclick="logout()" style="background:#e74c3c; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">Logout</button>
+            </div>
         </div>
         <div class="dashboard-container">
             <!-- Deck Management Panel -->
@@ -168,7 +172,8 @@
 
         <button onclick="toggleTools()" class="tools-btn">⚙️ Tools</button>
         <div id="tools-panel" class="tools-panel">
-            <button onclick="rollD20()">Roll D20</button>
+            <button onclick="toggleManaPool()" style="width:100%; margin-bottom:10px; background:#3498db;">Toggle Mana Pool</button>
+            <button onclick="rollD20()" style="width:100%;">Roll D20</button>
             <hr>
             <input type="text" id="token-name" placeholder="Token Name">
             <input type="text" id="token-oracle" placeholder="Oracle Text"> <input type="text" id="token-pt" placeholder="P/T (e.g. 1/1)">
@@ -207,8 +212,15 @@
             </div>
             <button id="btn-pass-priority" onclick="passPriority()">Pass Priority</button>
         </div>
-        <div id="mana-pool" class="ui-panel left-center">
-            <div class="mana-btn w" onclick="addMana('W')">W: <span id="mana-W">0</span></div><div class="mana-btn u" onclick="addMana('U')">U: <span id="mana-U">0</span></div><div class="mana-btn b" onclick="addMana('B')">B: <span id="mana-B">0</span></div><div class="mana-btn r" onclick="addMana('R')">R: <span id="mana-R">0</span></div><div class="mana-btn g" onclick="addMana('G')">G: <span id="mana-G">0</span></div><div class="mana-btn c" onclick="addMana('C')">C: <span id="mana-C">0</span></div>
+        <div id="mana-pool" class="ui-panel left-center" style="display: none;">
+            <div class="drag-header"><span style="font-size:12px; pointer-events:none;">Mana/Storm</span></div>
+            <div class="mana-btn w" onclick="addMana('W', 1)" oncontextmenu="addMana('W', -1); return false;">W: <span id="mana-W">0</span></div>
+            <div class="mana-btn u" onclick="addMana('U', 1)" oncontextmenu="addMana('U', -1); return false;">U: <span id="mana-U">0</span></div>
+            <div class="mana-btn b" onclick="addMana('B', 1)" oncontextmenu="addMana('B', -1); return false;">B: <span id="mana-B">0</span></div>
+            <div class="mana-btn r" onclick="addMana('R', 1)" oncontextmenu="addMana('R', -1); return false;">R: <span id="mana-R">0</span></div>
+            <div class="mana-btn g" onclick="addMana('G', 1)" oncontextmenu="addMana('G', -1); return false;">G: <span id="mana-G">0</span></div>
+            <div class="mana-btn c" onclick="addMana('C', 1)" oncontextmenu="addMana('C', -1); return false;">C: <span id="mana-C">0</span></div>
+            <div class="mana-btn" style="background:#8e44ad; color:white;" onclick="addMana('Storm', 1)" oncontextmenu="addMana('Storm', -1); return false;">S: <span id="mana-Storm">0</span></div>
         </div>
 <div id="game-log-container" class="ui-panel" style="position: absolute; top: 20%; right: 10px; width: 250px; display: flex; flex-direction: column; z-index: 9000; background: rgba(15,20,25,0.95); border-radius: 8px;">
             <div id="log-drag-handle" style="background: #2c3e50; padding: 8px 10px; cursor: move; border-bottom: 1px solid #34495e; font-weight: bold; color: #3498db; display: flex; justify-content: space-between; border-radius: 8px 8px 0 0;">

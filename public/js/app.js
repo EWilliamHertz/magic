@@ -25,7 +25,13 @@ async function initApp() {
         const res = await fetch('/api/config'); const cfg = await res.json();
         firebase.initializeApp(cfg); db = firebase.database(); auth = firebase.auth();
         auth.onAuthStateChanged(u => {
-            if(u) { currentUser = u; document.getElementById('user-display-name').innerText = u.displayName || u.email; showScreen('dashboard-screen'); listenToLobbies(); listenToUserDecks(); }
+            if(u) { 
+                currentUser = u; 
+                const name = u.displayName || u.email.split('@')[0];
+                document.getElementById('user-display-name').innerText = name; 
+                document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
+                showScreen('dashboard-screen'); listenToLobbies(); listenToUserDecks(); 
+            }
             else { currentUser = null; showScreen('landing-screen'); }
         });
     } catch(e) { notify("Backend Connection Failed", "error"); }
@@ -143,3 +149,13 @@ function listenToCurrentLobby() {
         }
     });
 }
+window.promptNickname = function() {
+    const nick = prompt("Enter your new nickname:");
+    if (nick && currentUser) {
+        currentUser.updateProfile({ displayName: nick }).then(() => {
+            document.getElementById('user-display-name').innerText = nick;
+            document.getElementById('user-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${nick}`;
+            notify("Nickname updated!", "success");
+        });
+    }
+};
