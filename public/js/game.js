@@ -66,6 +66,16 @@ window.listenToTable = function() {
     db.ref(`lobbies/${currentLobbyId}/players`).on('value', snap => { 
         playersData = snap.val() || {}; 
         window.allCards = localCards;
+        
+        // CHECK FOR GAME OVER
+        if (playersData[currentUser.uid]?.life <= 0) {
+            handleGameLoss();
+        }
+        const opponentId = Object.keys(playersData).find(id => id !== currentUser.uid);
+        if (opponentId && playersData[opponentId]?.life <= 0) {
+            handleGameWin(opponentId);
+        }
+        
         renderManaPool(); 
         renderOpponentLife();
     });
@@ -107,6 +117,92 @@ function emptyManaPool(uid) {
 function renderManaPool() {
     const myMana = playersData[currentUser.uid]?.mana || {W:0, U:0, B:0, R:0, G:0, C:0};
     Object.keys(myMana).forEach(c => { const el = document.getElementById(`mana-${c}`); if(el) el.innerText = myMana[c]; });
+}
+
+// VICTORY DETECTION & GAME OVER HANDLERS
+function handleGameWin(loser) {
+    const lobbyId = currentLobbyId;
+    const winnerId = currentUser.uid;
+    
+    // Mark this lobby as completed
+    db.ref(`lobbies/${lobbyId}`).update({ completed: true, winner: winnerId });
+    
+    // Show win screen
+    showGameOverScreen(true, loser);
+    
+    // Track match win (for BO3)
+    const matchKey = `${currentUser.uid}_vs_${loser}`;
+    db.ref(`matches/${matchKey}/games`).transaction(games => (games || 0) + 1);
+    db.ref(`matches/${matchKey}/winners/${winnerId}`).transaction(w => (w || 0) + 1);
+}
+
+function handleGameLoss() {
+    const lobbyId = currentLobbyId;
+    const opponentId = Object.keys(playersData).find(id => id !== currentUser.uid);
+    
+    // Mark this lobby as completed
+    db.ref(`lobbies/${lobbyId}`).update({ completed: true, winner: opponentId });
+    
+    // Show loss screen
+    showGameOverScreen(false, opponentId);
+}
+
+function showGameOverScreen(didWin, opponentId) {
+    const modal = document.getElementById('game-over-modal') || createGameOverModal();
+    const title = modal.querySelector('#game-over-title');
+    const subtitle = modal.querySelector('#game-over-subtitle');
+    const rematchBtn = modal.querySelector('#btn-rematch');
+    const exitBtn = modal.querySelector('#btn-exit-game');
+    
+    title.textContent = didWin ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE 💀';
+    title.style.color = didWin ? '#2ecc71' : '#e74c3c';
+    
+    const opName = playersData[opponentId]?.nickname || playersData[opponentId]?.name || 'Opponent';
+    subtitle.textContent = didWin ? `${opName} has been defeated!` : `${opName} defeated you!`;
+    
+    modal.style.display = 'flex';
+    
+    // Rematch button goes to lobby creation
+    rematchBtn.onclick = () => {
+        modal.style.display = 'none';
+        showScreen('lobbies-screen');
+    };
+    
+    // Exit goes to dashboard
+    exitBtn.onclick = () => {
+        modal.style.display = 'none';
+        showScreen('dashboard-screen');
+    };
+}
+
+function createGameOverModal() {
+    const modal = document.createElement('div');
+    modal.id = 'game-over-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background:#1a1a1a; border:3px solid gold; border-radius:10px; padding:40px; text-align:center; max-width:600px;">
+            <h1 id="game-over-title" style="font-size:48px; margin:20px 0; font-family:Georgia;">GAME OVER</h1>
+            <p id="game-over-subtitle" style="font-size:20px; color:#95a5a6; margin:20px 0;"></p>
+            <div style="margin-top:40px; display:flex; gap:20px; justify-content:center;">
+                <button id="btn-rematch" onclick="" class="btn-primary" style="padding:12px 30px; font-size:16px;">Play Again</button>
+                <button id="btn-exit-game" onclick="" class="btn-secondary" style="padding:12px 30px; font-size:16px;">Back to Dashboard</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    return modal;
 }
 
 // ROADMAP 1 & 2: Phases & Priority

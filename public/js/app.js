@@ -223,6 +223,14 @@ function listenToLobbies() {
         let html = '';
         let hasLobbies = false;
         snap.forEach(c => { 
+            const isCompleted = c.val().completed;
+            const hasWinner = c.val().winner;
+            
+            // Don't show completed lobbies in lobby list
+            if (isCompleted) {
+                return;
+            }
+            
             if(c.val().status === 'waiting') {
                 hasLobbies = true;
                 const playerCount = Object.keys(c.val().players || {}).length;
