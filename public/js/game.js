@@ -15,6 +15,19 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('click', () => { document.getElementById('context-menu').style.display = 'none'; });
 
+// FIX 4: Chat input Enter key support
+document.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+    }
+});
+
 document.addEventListener('mouseup', e => {
     if(draggedCard) {
         let nX = e.clientX - offsetX, nY = e.clientY - offsetY, z = 'battlefield';
@@ -44,13 +57,17 @@ window.listenToTable = function() {
     db.ref(`lobbies/${currentLobbyId}/gameState`).on('value', snap => { 
         if(!snap.exists()) return; 
         gameState = snap.val(); 
+        window.currentGameState = gameState;
         renderPhaseTracker(); 
+        showCombatPanel();
     });
     
     // Player Stats (Mana) Listener
     db.ref(`lobbies/${currentLobbyId}/players`).on('value', snap => { 
         playersData = snap.val() || {}; 
+        window.allCards = localCards;
         renderManaPool(); 
+        renderOpponentLife();
     });
 
     // Game Log Listener
@@ -61,6 +78,12 @@ window.listenToTable = function() {
         logEl.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> ${v.text}</div>`;
         logEl.scrollTop = logEl.scrollHeight;
     });
+
+    // FIX 3: Listen to opponent board
+    listenToOpponentBoard();
+    
+    // FIX 4: Listen to chat messages
+    listenToChat();
 };
 
 // ROADMAP 4: Game Actions & Logging
@@ -149,6 +172,8 @@ function renderPhaseTracker() {
             else el.classList.remove('active');
         }
     });
+    
+    showCombatPanel();
 }
 
 // Generates card face HTML — shows real card art when available, text layout as fallback
@@ -811,4 +836,151 @@ window.toggleManaPool = function() {
 // Helper function for card generation HTML (used in preview)
 function genHTML(data) {
     return generateCardFaceHTML(data);
+}
+
+// FIX 3: Listen to opponent board in real-time
+function listenToOpponentBoard() {
+    const opponentId = Object.keys(playersData || {}).find(id => id !== currentUser.uid);
+    if (!opponentId) return;
+    
+    db.ref(`lobbies/${currentLobbyId}/cards`).on('value', snap => {
+        const allCards = snap.val() || {};
+        const oppCards = Object.entries(allCards)
+            .filter(([, card]) => card.owner === opponentId && card.zone === 'battlefield')
+            .map(([id, card]) => ({id, ...card}));
+        
+        let html = '';
+        oppCards.forEach(card => {
+            html += `<div style="width:60px; height:90px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:1px solid #3498db; border-radius:4px; display:flex; align-items:center; justify-content:center; color:white; font-size:0.7em; text-align:center; padding:3px; cursor:not-allowed; opacity:0.8;">${card.name}</div>`;
+        });
+        document.getElementById('opponent-battlefield').innerHTML = html || '<div style="color:#95a5a6;">No creatures</div>';
+        
+        // Update zone counters
+        const oppDeck = Object.values(allCards).filter(c => c.owner === opponentId && c.zone === 'deck').length;
+        const oppGrave = Object.values(allCards).filter(c => c.owner === opponentId && c.zone === 'graveyard').length;
+        const oppExile = Object.values(allCards).filter(c => c.owner === opponentId && c.zone === 'exile').length;
+        
+        document.getElementById('opp-deck-count').innerText = oppDeck;
+        document.getElementById('opp-grave-count').innerText = oppGrave;
+        document.getElementById('opp-exile-count').innerText = oppExile;
+    });
+}
+
+// FIX 3: Update opponent life in real-time
+function renderOpponentLife() {
+    if (!playersData) return;
+    const opponentId = Object.keys(playersData).find(id => id !== currentUser.uid);
+    if (!opponentId) return;
+    
+    const oppData = playersData[opponentId];
+    const oppName = oppData.name || 'Opponent';
+    document.getElementById('opp-name').innerText = oppName;
+    document.getElementById('opp-avatar').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${oppName}`;
+    
+    const newLife = oppData.life || 20;
+    const oldLife = parseInt(document.getElementById('opp-life-total').innerText) || 20;
+    
+    document.getElementById('opp-life-total').innerText = newLife;
+    
+    if (newLife < oldLife) {
+        document.getElementById('opp-life-total').style.animation = 'pulse 0.5s';
+        setTimeout(() => document.getElementById('opp-life-total').style.animation = '', 500);
+    }
+}
+
+// FIX 4: Send chat message
+function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    db.ref(`lobbies/${currentLobbyId}/chat/${Date.now()}`).set({
+        author: currentUser.email.split('@')[0],
+        message: text,
+        time: time,
+        uid: currentUser.uid
+    });
+    
+    input.value = '';
+    console.log(`[Chat] You said '${text}'`);
+}
+
+// FIX 4: Listen to chat messages
+function listenToChat() {
+    db.ref(`lobbies/${currentLobbyId}/chat`).limitToLast(50).on('child_added', snap => {
+        const msg = snap.val();
+        const isYours = msg.uid === currentUser.uid;
+        const color = isYours ? '#2ecc71' : '#3498db';
+        const align = isYours ? 'flex-end' : 'flex-start';
+        
+        const chatDiv = document.createElement('div');
+        chatDiv.style.cssText = `align-self:${align}; background:${color}; color:white; padding:8px 12px; border-radius:8px; max-width:80%; margin:5px 0; word-wrap:break-word;`;
+        chatDiv.innerHTML = `<div style="font-size:0.8em; opacity:0.8;">${msg.author} ${msg.time}</div><div>${msg.message}</div>`;
+        
+        document.getElementById('chat-messages').appendChild(chatDiv);
+        document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+    });
+}
+
+// FIX 5: Show combat panel
+function showCombatPanel() {
+    const gameState = window.currentGameState || {};
+    if (gameState.phase === 'combat' && gameState.priority === currentUser.uid) {
+        document.getElementById('combat-panel').style.display = 'block';
+        renderAttackersList();
+    } else {
+        document.getElementById('combat-panel').style.display = 'none';
+    }
+}
+
+// FIX 5: Render list of creatures to attack with
+function renderAttackersList() {
+    const creatures = Object.values(window.allCards || {})
+        .filter(c => c.owner === currentUser.uid && c.zone === 'battlefield' && c.type.includes('Creature'));
+    
+    let html = '';
+    creatures.forEach(c => {
+        const isSelected = (window.selectedAttackers || []).includes(c.id);
+        html += `<div onclick="toggleAttacker('${c.id}')" style="padding:8px; background:${isSelected ? 'rgba(220,20,60,0.3)' : 'rgba(52,152,219,0.2)'}; border:${isSelected ? '2px solid #e74c3c' : '1px solid #3498db'}; border-radius:4px; margin:5px 0; cursor:pointer; color:#ecf0f1;">${c.name}</div>`;
+    });
+    document.getElementById('attackers-list').innerHTML = html || '<div style="color:#95a5a6; text-align:center;">No creatures</div>';
+}
+
+// FIX 5: Toggle attacker selection
+window.selectedAttackers = [];
+function toggleAttacker(cardId) {
+    const idx = window.selectedAttackers.indexOf(cardId);
+    if (idx > -1) {
+        window.selectedAttackers.splice(idx, 1);
+    } else {
+        window.selectedAttackers.push(cardId);
+    }
+    renderAttackersList();
+}
+
+// FIX 5: Declare attackers
+function declareAttackers() {
+    if (window.selectedAttackers.length === 0) return notify('Select at least one attacker', 'error');
+    
+    db.ref(`lobbies/${currentLobbyId}/gameState`).update({
+        attackers: window.selectedAttackers
+    });
+    
+    notify(`Attacking with ${window.selectedAttackers.length} creature(s)`, 'success');
+    window.selectedAttackers = [];
+    document.getElementById('combat-panel').style.display = 'none';
+    passPriority();
+}
+
+// FIX 5: Skip combat
+function skipCombat() {
+    db.ref(`lobbies/${currentLobbyId}/gameState`).update({
+        attackers: []
+    });
+    window.selectedAttackers = [];
+    document.getElementById('combat-panel').style.display = 'none';
+    passPriority();
 }

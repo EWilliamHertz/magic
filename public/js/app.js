@@ -202,7 +202,7 @@ function listenToUserDecks() {
 function createLobby() {
     const format = document.getElementById('lobby-format').value;
     const bestOf = document.getElementById('lobby-best-of')?.value || '1';
-    const maxPlayers = parseInt(document.getElementById('lobby-max-players').value);
+    const maxPlayers = 2; // FIX 1: Fixed to 2-player only for 1v1 Magic
     
     if(!format) return notify('Please select a format', 'error');
     
@@ -241,11 +241,21 @@ function listenToCurrentLobby() {
     db.ref(`lobbies/${currentLobbyId}`).on('value', snap => {
         const lobby = snap.val(); if(!lobby) return;
         const pArray = Object.entries(lobby.players || {});
-        document.getElementById('lobby-players-list').innerHTML = pArray.map(([, data]) => {
+        
+        // FIX 1: Show both players and waiting message if only one
+        let html = '';
+        if (pArray.length < 2) {
+            html = '<div style="text-align:center; color:#95a5a6; padding:20px;">Waiting for opponent to join...</div>';
+        }
+        
+        html += pArray.map(([uid, data]) => {
             const statusClass = data.ready ? 'ready' : 'waiting';
             const statusText = data.ready ? 'READY' : 'WAITING';
-            return `<div class="player-item ${statusClass}"><div class="player-name">${data.name}</div><div class="player-status ${statusClass}">${statusText}</div></div>`;
+            const isYou = uid === currentUser.uid ? ' (You)' : '';
+            return `<div class="player-item ${statusClass}"><div class="player-name">${data.name}${isYou}</div><div class="player-status ${statusClass}">${statusText}</div></div>`;
         }).join('');
+        
+        document.getElementById('lobby-players-list').innerHTML = html;
         
         if (lobby.players[currentUser.uid]) {
             const btn = document.getElementById('ready-btn');
@@ -256,15 +266,27 @@ function listenToCurrentLobby() {
                 btn.innerText = "Ready Up";
                 btn.classList.remove('unready');
             }
+            // FIX 1: Disable ready button if not enough players
+            btn.disabled = pArray.length < 2;
+            if(pArray.length < 2) btn.title = 'Waiting for opponent...';
         }
 
+        // FIX 6: 2-player game start logic - only when both players in lobby AND both ready
         if(lobby.status === 'playing') {
-            if(!window.gameStarted) { window.gameStarted = true; notify("Match Started!"); showScreen('playmat'); document.getElementById('spawn-modal').style.display='block'; window.listenToTable(); }
+            if(!window.gameStarted) { 
+                window.gameStarted = true; 
+                notify("Match Started! Both players ready. Good luck! ♠️♥️♦️♣️"); 
+                showScreen('playmat'); 
+                document.getElementById('spawn-modal').style.display='block'; 
+                window.listenToTable();
+                window.listenToOpponentBoard(); // FIX 3: Start listening to opponent
+            }
         } else if(pArray.length === lobby.maxPlayers && pArray.every(([,p]) => p.ready) && lobby.hostId === currentUser.uid) {
-            // Initiate the State Engine
+            // FIX 6: Only host can initiate - game starts when FULL and BOTH players READY
+            const firstPlayer = pArray[0][0];
             db.ref(`lobbies/${currentLobbyId}`).update({
                 status: 'playing',
-                gameState: { turn: currentUser.uid, phase: 'untap', priority: currentUser.uid, passed: {} }
+                gameState: { turn: firstPlayer, phase: 'untap', priority: firstPlayer, passed: {}, attackers: [], blockers: {} }
             });
         }
     });
@@ -280,7 +302,7 @@ window.promptNickname = function() {
     }
 };
 
-// FIX 2: Edit profile function
+// Edit profile function
 window.editProfile = function() {
     const nick = prompt("Enter your nickname:", document.getElementById('user-display-name').innerText);
     if (nick && currentUser) {
@@ -292,7 +314,7 @@ window.editProfile = function() {
     }
 };
 
-// FIX 2: Update avatar seed
+// Update avatar seed
 window.updateAvatarSeed = function() {
     const seed = prompt("Enter avatar seed:", document.getElementById('user-display-name').innerText);
     if(seed) {
